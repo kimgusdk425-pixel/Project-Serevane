@@ -29,6 +29,32 @@ public class CarryableObject : MonoBehaviour
         SetColliders(true); // 발판 충돌 복구
     }
 
+    public Vector3 GetPlacementHalfExtents()
+    {
+        Bounds combinedBounds = default; // 모든 충돌체를 감쌀 범위
+        bool hasCollider = false;
+
+        foreach (Collider c in colliders)
+        {
+            if (c == null || !c.enabled || c.isTrigger) // 실제 몸체만 계산
+            {
+                continue;
+            }
+
+            if (!hasCollider)
+            {
+                combinedBounds = c.bounds;
+                hasCollider = true;
+            }
+            else
+            {
+                combinedBounds.Encapsulate(c.bounds);
+            }
+        }
+
+        return hasCollider ? combinedBounds.extents : Vector3.one * 0.5f; // 충돌체 없을 때 예비 크기
+    }
+
     private void SetColliders(bool enabled)
     {
         foreach (Collider c in colliders) // 자식 포함 전부

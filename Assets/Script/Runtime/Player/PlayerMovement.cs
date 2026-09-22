@@ -14,6 +14,7 @@ public class PlayerMovement : MonoBehaviour
     private Camera mainCam; // 기준 카메라
     private float verticalVelocity; // 떨어지는 속도
     private Vector3 spawnPos; // 시작 위치
+    private bool canControl = true; // 이동·점프 입력 허용 여부
 
     private void Awake()
     {
@@ -40,7 +41,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        Vector2 input = Vector2.ClampMagnitude(inputActions.Player.Move.ReadValue<Vector2>(), 1f); // 이동 입력
+        Vector2 input = canControl
+            ? Vector2.ClampMagnitude(inputActions.Player.Move.ReadValue<Vector2>(), 1f)
+            : Vector2.zero; // 종료 후에는 입력만 무시
         Vector3 moveDir = ToCameraSpace(input); // 카메라 기준 방향
         Vector3 movement = moveDir * moveSpeed; // 평면 이동량
 
@@ -55,7 +58,7 @@ public class PlayerMovement : MonoBehaviour
             verticalVelocity = -2f; // 바닥에 붙이기
         }
 
-        if (characterController.isGrounded && inputActions.Player.Jump.WasPressedThisFrame()) // 땅+Space
+        if (canControl && characterController.isGrounded && inputActions.Player.Jump.WasPressedThisFrame()) // 땅+Space
         {
             verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity); // 높이→속도 변환
         }
@@ -64,6 +67,11 @@ public class PlayerMovement : MonoBehaviour
 
         movement.y = verticalVelocity; // 상하 속도 합치기
         characterController.Move(movement * Time.deltaTime); // 충돌 고려해 이동
+    }
+
+    public void SetControlEnabled(bool enabled)
+    {
+        canControl = enabled; // 중력은 유지하고 조작만 잠그기
     }
 
     public void Respawn()
