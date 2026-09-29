@@ -1,9 +1,17 @@
 using UnityEngine;
 using UnityEngine.InputSystem; // WasPressedThisFrame용
 
+public enum CarryInteractionResult
+{
+    None,
+    PickedUp,
+    PutDown
+}
+
 public class PlayerCarryController : MonoBehaviour
 {
     [SerializeField] private Transform holdPoint; // 손 위치
+    [SerializeField] private Vector3 holdOffset = new Vector3(0f, 0.2f, 1.2f); // 몸을 가리지 않도록 상자를 조금 더 앞에 들기
     [SerializeField] private float pickupRange = 2f; // 집기 범위
     [SerializeField] private float dropDistance = 1f; // 놓을 거리
     [SerializeField] private float placementPadding = 0.03f; // 접촉 오차 여유
@@ -12,9 +20,31 @@ public class PlayerCarryController : MonoBehaviour
     private CarryableObject held; // 든 물건. 없으면 null
     private Vector3 heldHalfExtents; // 놓기 검사에 쓸 물건 반크기
     private readonly Collider[] pickupHits = new Collider[16]; // 주변 검색용 재사용 배열
+    private bool directInputEnabled = true; // 다른 상호작용 통합기가 E 키를 맡는지 여부
 
     public bool IsHolding => held != null; // UI가 현재 운반 상태를 확인
     public bool CanPickUpNearby => held == null && FindNearestCarryable() != null; // UI용 주변 상자 확인
+
+    public void SetDirectInputEnabled(bool enabled)
+    {
+        directInputEnabled = enabled;
+    }
+
+    public float GetNearestCarryableDistance()
+    {
+        if (held != null)
+        {
+            return 0f; // 들고 있는 상자를 내려놓는 동작은 플레이어 바로 옆의 후보입니다.
+        }
+
+        CarryableObject nearest = FindNearestCarryable();
+        if (nearest == null)
+        {
+            return float.MaxValue;
+        }
+
+        return (nearest.transform.position - transform.position).sqrMagnitude;
+    }
 
     private void Awake()
     {
@@ -22,8 +52,8 @@ public class PlayerCarryController : MonoBehaviour
         if (holdPoint == null) // 미지정 시 자동 생성
         {
             GameObject go = new GameObject("HoldPoint"); // 손 위치
-            go.transform.SetParent(transform);
-            go.transform.localPosition = new Vector3(0f, 1.4f, 0.6f); // 눈앞
+            go.transform.SetParent(transform, false); // 플레이어 회전을 그대로 따라가기
+            go.transform.localPosition = holdOffset; // 쥐의 몸통 앞
             holdPoint = go.transform;
         }
     }
@@ -45,30 +75,40 @@ public class PlayerCarryController : MonoBehaviour
 
     private void Update()
     {
+        if (!directInputEnabled)
+        {
+            return;
+        }
+
         if (!inputActions.Player.Interact.WasPressedThisFrame()) // E 1회 아니면 무시
         {
             return;
         }
 
-        if (held == null) // 빈손이면 집기
-        {
-            TryPickUp();
-        }
-        else // 들었으면 놓기
-        {
-            TryDrop();
-        }
+        TryInteract();
     }
 
-    private void TryPickUp()
+    public CarryInteractionResult TryInteract()
     {
-        CarryableObject nearest = FindNearestCarryable(); // 주변에서 가장 가까운 상자
-        if (nearest == null) // 범위 내 물건 없음
+        if (held == null) // 빈손이면 집기
         {
-            return;
+            CarryableObject nearest = FindNearestCarryable();
+            if (nearest == null)
+            {
+                return CarryInteractionResult.None;
+            }
+
+            AttachToHoldPoint(nearest); // E를 누른 즉시 손에 붙이기
+            return CarryInteractionResult.PickedUp;
         }
 
-        held = nearest; // 추적 시작
+        TryDrop(); // 들었으면 놓기
+        return held == null ? CarryInteractionResult.PutDown : CarryInteractionResult.None;
+    }
+
+    private void AttachToHoldPoint(CarryableObject target)
+    {
+        held = target; // 선택한 상자를 바로 손에 붙이기
         heldHalfExtents = held.GetPlacementHalfExtents(); // 충돌체를 끄기 전에 크기 기억
         held.PickUp(); // 물리 끄기
         held.transform.SetParent(holdPoint); // 손에 붙이기
@@ -161,5 +201,8 @@ public class PlayerCarryController : MonoBehaviour
     {
         Gizmos.color = Color.yellow; // 에디터 표시
         Gizmos.DrawWireSphere(transform.position, pickupRange); // 집기 범위
+        Gizmos.color = Color.green;
+        Vector3 preview = holdPoint != null ? holdPoint.position : transform.TransformPoint(holdOffset);
+        Gizmos.DrawWireSphere(preview, 0.12f); // Inspector에서 손 위치 확인
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 public class InteractionPromptUI : MonoBehaviour
 {
     [SerializeField] private PlayerCarryController carryController; // 상호작용 상태 제공자
+    [SerializeField] private PlayerItemInteraction itemInteraction; // 아이템·문 상호작용 상태 제공자
     [SerializeField] private TMP_Text promptText; // 화면에 표시할 TMP 글자
 
     private void Awake()
@@ -11,6 +12,11 @@ public class InteractionPromptUI : MonoBehaviour
         if (carryController == null)
         {
             carryController = FindFirstObjectByType<PlayerCarryController>(); // 미연결 시 플레이어 탐색
+        }
+
+        if (itemInteraction == null)
+        {
+            itemInteraction = FindFirstObjectByType<PlayerItemInteraction>(); // 아이템 상호작용 탐색
         }
 
         if (promptText == null)
@@ -28,7 +34,12 @@ public class InteractionPromptUI : MonoBehaviour
 
         string message = string.Empty;
 
-        if (carryController != null)
+        if (itemInteraction != null && !string.IsNullOrEmpty(itemInteraction.CurrentPrompt))
+        {
+            message = itemInteraction.CurrentPrompt; // 열쇠·문 안내를 우선 표시
+        }
+
+        if (message.Length == 0 && carryController != null)
         {
             if (carryController.IsHolding)
             {
