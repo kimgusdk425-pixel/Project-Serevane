@@ -11,6 +11,7 @@ public class PlayerMovement : MonoBehaviour
     private bool useSideScrollControls; // 옆 카메라로 바뀐 뒤에만 추격 조작 사용
 
     private CharacterController characterController; // 충돌+이동 담당
+    private PlayerCarryController carryController; // 들고 있는 상자의 앞 공간 검사
     private InputSystem_Actions inputActions; // 자동 발급 입력표
     private Camera mainCam; // 기준 카메라
     private float verticalVelocity; // 떨어지는 속도
@@ -20,6 +21,7 @@ public class PlayerMovement : MonoBehaviour
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
+        carryController = GetComponent<PlayerCarryController>();
         inputActions = new InputSystem_Actions(); // 입력표 생성
         mainCam = Camera.main; // 메인 카메라 자동 탐색
         spawnPos = transform.position; // 시작 위치 기억
@@ -51,7 +53,11 @@ public class PlayerMovement : MonoBehaviour
         if (moveDir.sqrMagnitude > 0.001f) // 입력 있을 때만
         {
             Quaternion look = Quaternion.LookRotation(moveDir); // 바라볼 방향
-            transform.rotation = Quaternion.Slerp(transform.rotation, look, turnSpeed * Time.deltaTime); // 부드럽게 회전
+            Quaternion nextRotation = Quaternion.Slerp(transform.rotation, look, turnSpeed * Time.deltaTime);
+            if (carryController == null || carryController.CanMoveHeldBox(Vector3.zero, nextRotation))
+            {
+                transform.rotation = nextRotation; // 상자가 벽을 통과하지 않을 때만 회전
+            }
         }
 
         if (characterController.isGrounded && verticalVelocity < 0f) // 땅에 닿았으면
@@ -67,7 +73,21 @@ public class PlayerMovement : MonoBehaviour
         verticalVelocity += gravity * Time.deltaTime; // 낙하 가속
 
         movement.y = verticalVelocity; // 상하 속도 합치기
-        characterController.Move(movement * Time.deltaTime); // 충돌 고려해 이동
+        Vector3 step = movement * Time.deltaTime;
+        if (carryController != null && !carryController.CanMoveHeldBox(step, transform.rotation))
+        {
+            step = new Vector3(0f, step.y, 0f); // 벽에 닿았으면 수평 이동만 취소
+            if (!carryController.CanMoveHeldBox(step, transform.rotation))
+            {
+                step = Vector3.zero; // 천장처럼 위아래도 막혔으면 그 자리 유지
+                if (verticalVelocity > 0f)
+                {
+                    verticalVelocity = 0f;
+                }
+            }
+        }
+
+        characterController.Move(step); // 플레이어 몸과 들고 있는 상자 모두 통과하지 않을 때 이동
     }
 
     public void SetControlEnabled(bool enabled)

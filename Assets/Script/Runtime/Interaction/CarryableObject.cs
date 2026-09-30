@@ -26,6 +26,8 @@ public class CarryableObject : MonoBehaviour
     {
         IsHeld = false; // 상태 전환
         rb.isKinematic = false; // 물리 켜기. 떨어지고 밟힘
+        rb.constraints |= RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionZ; // 앞뒤·좌우로 밀리지 않고 아래로만 떨어짐
+        rb.linearVelocity = Vector3.zero; // 들고 이동하던 속도가 남지 않도록
         SetColliders(true); // 발판 충돌 복구
     }
 
