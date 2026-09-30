@@ -8,6 +8,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float gravity = -9.81f; // 중력 값
     [SerializeField] private float jumpHeight = 1.2f; // 점프 높이
     [SerializeField] private float turnSpeed = 10f; // 회전 속도
+    private bool useSideScrollControls; // 옆 카메라로 바뀐 뒤에만 추격 조작 사용
 
     private CharacterController characterController; // 충돌+이동 담당
     private InputSystem_Actions inputActions; // 자동 발급 입력표
@@ -74,6 +75,22 @@ public class PlayerMovement : MonoBehaviour
         canControl = enabled; // 중력은 유지하고 조작만 잠그기
     }
 
+    public void SetSideScrollControls(bool enabled)
+    {
+        useSideScrollControls = enabled; // 연출 전후의 조작 방식을 전환
+    }
+
+    public void ApplyImpactBounce(float height)
+    {
+        if (height <= 0f)
+        {
+            return;
+        }
+
+        float bounceSpeed = Mathf.Sqrt(height * -2f * gravity); // 원하는 높이를 위쪽 속도로 변환
+        verticalVelocity = Mathf.Max(verticalVelocity, bounceSpeed); // 이미 뛰었다면 더 약하게 만들지 않음
+    }
+
     public void Respawn()
     {
         characterController.enabled = false; // 충돌 잠시 해제
@@ -82,7 +99,13 @@ public class PlayerMovement : MonoBehaviour
         characterController.enabled = true; // 충돌 복구
     }
 
-    private Vector3 ToCameraSpace(Vector2 input)    {
+    private Vector3 ToCameraSpace(Vector2 input)
+    {
+        if (useSideScrollControls)
+        {
+            return new Vector3(-input.y, 0f, input.x); // D=길 앞(+Z), A=뒤, W=왼(-X), S=오른
+        }
+
         Vector3 fwd = Vector3.forward; // 예비: 월드 앞
         Vector3 right = Vector3.right; // 예비: 월드 옆
 

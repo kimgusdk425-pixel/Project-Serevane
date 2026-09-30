@@ -38,5 +38,11 @@ public class SceneFlowController : MonoBehaviour
         {
             demoEndPanel.SetActive(true); // 종료 문구 표시
         }
+
+        TofuMonster[] monsters = FindObjectsByType<TofuMonster>(FindObjectsSortMode.None);
+        foreach (TofuMonster monster in monsters)
+        {
+            monster.enabled = false; // 성공 후 다시 잡히지 않도록 추격 중지
+        }
     }
 }
