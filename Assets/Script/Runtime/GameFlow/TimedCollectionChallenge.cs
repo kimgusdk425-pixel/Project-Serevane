@@ -4,13 +4,14 @@ using UnityEngine;
 
 public class TimedCollectionChallenge : MonoBehaviour
 {
+    public event System.Action Completed; // 보상은 별도 컴포넌트가 성공 신호를 받아 처리
     [SerializeField, Min(1f)] private float timeLimit = 20f; // 도전 제한 시간
     [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 3f; // 결과 문구 표시 시간
     [SerializeField] private TMP_Text statusText; // 화면 위쪽 진행 안내
 
     private readonly List<TimedCollectionPickup> coins = new List<TimedCollectionPickup>();
     private TimedCollectionPickup starter;
-    private float timeLeft;
+    private double endsAt; // UI와 접촉 판정이 함께 사용하는 종료 시각
     private float resultTimeLeft;
     private float retryAvailableAt;
     private int collectedCount;
@@ -18,6 +19,7 @@ public class TimedCollectionChallenge : MonoBehaviour
     private int lastShownCount = -1;
     private bool running;
     private bool completed;
+    private bool awaitingRetry; // 실패 후 안내를 재도전할 때까지 유지
 
     private void Awake()
     {
@@ -61,8 +63,7 @@ public class TimedCollectionChallenge : MonoBehaviour
     {
         if (running)
         {
-            timeLeft -= Time.deltaTime;
-            if (timeLeft <= 0f)
+            if (Time.timeAsDouble >= endsAt)
             {
                 Fail();
             }
@@ -71,7 +72,7 @@ public class TimedCollectionChallenge : MonoBehaviour
                 ShowProgress();
             }
         }
-        else if (resultTimeLeft > 0f)
+        else if (!awaitingRetry && resultTimeLeft > 0f)
         {
             resultTimeLeft -= Time.deltaTime;
             if (resultTimeLeft <= 0f)
@@ -89,7 +90,8 @@ public class TimedCollectionChallenge : MonoBehaviour
         }
 
         running = true;
-        timeLeft = timeLimit;
+        awaitingRetry = false;
+        endsAt = Time.timeAsDouble + Mathf.Max(1f, timeLimit); // 기존 scaled time과 일시정지 규칙 유지
         resultTimeLeft = 0f;
         collectedCount = 0;
         lastShownSeconds = -1;
@@ -107,7 +109,13 @@ public class TimedCollectionChallenge : MonoBehaviour
 
     public void Collect(TimedCollectionPickup coin)
     {
-        if (!running || !coins.Contains(coin) || !coin.gameObject.activeSelf)
+        if (!isActiveAndEnabled || !running) return;
+        if (Time.timeAsDouble >= endsAt)
+        {
+            Fail(); // Update보다 접촉이 먼저 와도 만료 후 성공으로 바뀌지 않음
+            return;
+        }
+        if (coin == null || !coins.Contains(coin) || !coin.gameObject.activeSelf)
         {
             return; // 시작 전이거나 이미 먹은 코인은 세지 않음
         }
@@ -119,7 +127,8 @@ public class TimedCollectionChallenge : MonoBehaviour
         {
             running = false;
             completed = true;
-            ShowResult("SUCCESS!"); // 보상은 성공 표시 하나뿐
+            ShowResult("SUCCESS!");
+            Completed?.Invoke(); // 최초 성공에서만 알림: 재시도로 보상 복제 방지
         }
         else
         {
@@ -130,6 +139,7 @@ public class TimedCollectionChallenge : MonoBehaviour
     private void Fail()
     {
         running = false;
+        awaitingRetry = true;
         retryAvailableAt = Time.time + 0.5f; // 제자리에서 즉시 다시 시작되지 않도록 잠시 잠금
 
         foreach (TimedCollectionPickup coin in coins)
@@ -138,12 +148,12 @@ public class TimedCollectionChallenge : MonoBehaviour
         }
 
         starter.gameObject.SetActive(true); // 다시 닿으면 재도전 가능
-        ShowResult("TIME UP - RETRY");
+        ShowResult("TIME UP\nSTEP AWAY AND TOUCH AGAIN"); // 나갔다 다시 닿아야 하는 규칙을 명시
     }
 
     private void ShowProgress()
     {
-        int shownSeconds = Mathf.CeilToInt(timeLeft);
+        int shownSeconds = Mathf.CeilToInt((float)System.Math.Max(0d, endsAt - Time.timeAsDouble));
         if (shownSeconds == lastShownSeconds && collectedCount == lastShownCount)
         {
             return; // 숫자가 그대로면 TMP 글자를 다시 그리지 않음

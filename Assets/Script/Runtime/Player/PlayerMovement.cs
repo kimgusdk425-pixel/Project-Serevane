@@ -8,21 +8,29 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float gravity = -9.81f; // 중력 값
     [SerializeField] private float jumpHeight = 1.2f; // 점프 높이
     [SerializeField] private float turnSpeed = 10f; // 회전 속도
+    [SerializeField] private bool useStrictSurfaceCollision; // 지정 발판의 모서리 타기를 막을 씬에서만 사용
     private bool useSideScrollControls; // 옆 카메라로 바뀐 뒤에만 추격 조작 사용
 
     private CharacterController characterController; // 충돌+이동 담당
     private PlayerCarryController carryController; // 들고 있는 상자의 앞 공간 검사
+    private PlayerJumpProgress jumpProgress; // 수집한 빛 조각의 점프 보너스
     private InputSystem_Actions inputActions; // 자동 발급 입력표
     private Camera mainCam; // 기준 카메라
     private float verticalVelocity; // 떨어지는 속도
+    private float groundedStepOffset; // 바닥에서 작은 턱을 넘는 원래 높이
     private Vector3 spawnPos; // 시작 위치
     private bool canControl = true; // 이동·점프 입력 허용 여부
+    private readonly RaycastHit[] surfaceHits = new RaycastHit[32]; // 매 프레임 새 배열 생성 방지
+
+    public float CurrentJumpHeight => jumpHeight + (jumpProgress != null ? jumpProgress.JumpBonus : 0f);
     public bool IsControlEnabled => canControl && isActiveAndEnabled; // 다른 행동도 같은 조작 잠금을 확인
 
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
+        groundedStepOffset = characterController.stepOffset;
         carryController = GetComponent<PlayerCarryController>();
+        jumpProgress = GetComponent<PlayerJumpProgress>();
         inputActions = new InputSystem_Actions(); // 입력표 생성
         mainCam = Camera.main; // 메인 카메라 자동 탐색
         spawnPos = transform.position; // 시작 위치 기억
@@ -36,6 +44,7 @@ public class PlayerMovement : MonoBehaviour
     private void OnDisable()
     {
         inputActions.Player.Disable(); // Player 맵 끄기
+        characterController.stepOffset = groundedStepOffset; // 다른 이동 담당으로 넘길 때 원래 값 복원
     }
 
     private void OnDestroy()
@@ -68,7 +77,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (canControl && characterController.isGrounded && inputActions.Player.Jump.WasPressedThisFrame()) // 땅+Space
         {
-            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity); // 높이→속도 변환
+            verticalVelocity = Mathf.Sqrt(CurrentJumpHeight * -2f * gravity); // 기본 높이+강화를 위쪽 속도로 변환
         }
 
         verticalVelocity += gravity * Time.deltaTime; // 낙하 가속
@@ -88,7 +97,46 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
+        characterController.stepOffset = characterController.isGrounded && verticalVelocity <= 0f
+            ? groundedStepOffset : 0f; // 공중에서는 작은 턱 넘기로 점프 높이가 더해지지 않게 함
+        if (useStrictSurfaceCollision) step = LimitNoClimbMovement(step); // 기존 추격 씬에는 추가 검사하지 않음
         characterController.Move(step); // 플레이어 몸과 들고 있는 상자 모두 통과하지 않을 때 이동
+    }
+
+    private Vector3 LimitNoClimbMovement(Vector3 step)
+    {
+        Vector3 horizontal = new Vector3(step.x, 0f, step.z);
+        float distance = horizontal.magnitude;
+        if (distance < 0.0001f) return step;
+
+        Bounds body = characterController.bounds;
+        float padding = 0.01f;
+        float sideInset = characterController.skinWidth + padding; // 몸 충돌의 허용 오차만큼 옆면을 줄임
+        Vector3 halfSize = new Vector3(
+            Mathf.Max(0.01f, body.extents.x - sideInset),
+            Mathf.Max(0.01f, body.extents.y - padding),
+            Mathf.Max(0.01f, body.extents.z - sideInset)); // 발끝 가까이까지 있는 사각형: 캡슐 모서리 상승 차단
+        Vector3 direction = horizontal / distance;
+        int count = Physics.BoxCastNonAlloc(body.center, halfSize, direction, surfaceHits,
+            Quaternion.identity, distance + padding, Physics.DefaultRaycastLayers,
+            QueryTriggerInteraction.Ignore);
+        float allowed = distance;
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit hit = surfaceHits[i];
+            NoClimbSurface surface = hit.collider.GetComponentInParent<NoClimbSurface>();
+            if (hit.collider == characterController || surface == null || !surface.isActiveAndEnabled) continue; // 걸을 수 있는 바위는 일반 충돌로 처리
+            Vector3 towardSurface = hit.collider.bounds.ClosestPoint(body.center) - body.center; // 오목한 지형 MeshCollider도 오류 없이 이탈 방향 확인
+            towardSurface.y = 0f;
+            if (hit.distance <= padding && towardSurface.sqrMagnitude > 0.0001f &&
+                Vector3.Dot(direction, towardSurface) <= 0f) continue; // 밀착 상태에서도 뒤로 빠져나오기 허용
+            if (Vector3.Dot(direction, hit.normal) >= -0.001f) continue; // 벽에서 멀어지는 이동은 허용
+            allowed = Mathf.Min(allowed, Mathf.Max(0f, hit.distance - padding));
+        }
+
+        if (count == surfaceHits.Length) allowed = 0f; // 밀집 구역에서 결과 누락 시 통과보다 정지 선택
+        Vector3 safeHorizontal = direction * allowed;
+        return new Vector3(safeHorizontal.x, step.y, safeHorizontal.z); // 점프·낙하는 유지
     }
 
     public void SetControlEnabled(bool enabled)
