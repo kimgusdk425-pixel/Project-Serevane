@@ -19,6 +19,7 @@ public class PlayerMovement : MonoBehaviour
     private float verticalVelocity; // 떨어지는 속도
     private float groundedStepOffset; // 바닥에서 작은 턱을 넘는 원래 높이
     private Vector3 spawnPos; // 시작 위치
+    private Quaternion spawnRotation;
     private bool canControl = true; // 이동·점프 입력 허용 여부
     private readonly RaycastHit[] surfaceHits = new RaycastHit[32]; // 매 프레임 새 배열 생성 방지
 
@@ -34,6 +35,7 @@ public class PlayerMovement : MonoBehaviour
         inputActions = new InputSystem_Actions(); // 입력표 생성
         mainCam = Camera.main; // 메인 카메라 자동 탐색
         spawnPos = transform.position; // 시작 위치 기억
+        spawnRotation = transform.rotation;
     }
 
     private void OnEnable()
@@ -160,10 +162,16 @@ public class PlayerMovement : MonoBehaviour
         verticalVelocity = Mathf.Max(verticalVelocity, bounceSpeed); // 이미 뛰었다면 더 약하게 만들지 않음
     }
 
+    public void SetRespawnPoint(Vector3 position, Quaternion rotation)
+    {
+        spawnPos = position; // 퍼즐 진행은 유지하고 돌아올 위치만 변경
+        spawnRotation = rotation;
+    }
+
     public void Respawn()
     {
         characterController.enabled = false; // 충돌 잠시 해제
-        transform.position = spawnPos; // 시작 위치로
+        transform.SetPositionAndRotation(spawnPos, spawnRotation); // 체크포인트 위치와 방향으로
         verticalVelocity = 0f; // 낙하 속도 초기화
         characterController.enabled = true; // 충돌 복구
     }
