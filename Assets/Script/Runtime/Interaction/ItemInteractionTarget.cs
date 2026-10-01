@@ -10,6 +10,8 @@ public enum ItemInteractionResult
 // E 키로 상호작용할 수 있는 아이템 대상의 공통 부모입니다.
 public abstract class ItemInteractionTarget : MonoBehaviour
 {
+    public virtual bool CanSelect(PlayerInventory inventory) => isActiveAndEnabled; // 안내·입력의 후보가 될 수 있는지
+
     // 현재 인벤토리 상태에 맞는 안내 문구를 반환합니다.
     public abstract string GetInteractionPrompt(PlayerInventory inventory);
 

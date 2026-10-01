@@ -9,16 +9,19 @@ public class PlayerItemInteraction : MonoBehaviour
 
     private InputSystem_Actions inputActions;
     private PlayerAnimationDriver animationDriver;
-    private readonly Collider[] interactionHits = new Collider[16];
+    private PlayerMovement movement;
+    private Collider[] interactionHits = new Collider[16]; // 가득 찼을 때만 늘리고 다음 검색에 재사용
     private bool interactWasHeld;
     private bool carryIsNearest;
 
     public string CurrentPrompt { get; private set; } = string.Empty;
+    public bool IsInteractionAllowed => isActiveAndEnabled && (movement == null || movement.IsControlEnabled);
 
     private void Awake()
     {
         inputActions = new InputSystem_Actions();
         animationDriver = GetComponent<PlayerAnimationDriver>(); // 성공했을 때만 동작 재생
+        movement = GetComponent<PlayerMovement>();
 
         if (inventory == null)
         {
@@ -41,11 +44,13 @@ public class PlayerItemInteraction : MonoBehaviour
     private void OnEnable()
     {
         inputActions.Player.Enable();
+        interactWasHeld = ReadInteractHeld(); // 재활성화 때 이미 누른 E를 새 입력으로 취급하지 않음
     }
 
     private void OnDisable()
     {
         inputActions.Player.Disable();
+        CurrentPrompt = string.Empty;
     }
 
     private void OnDestroy()
@@ -55,6 +60,15 @@ public class PlayerItemInteraction : MonoBehaviour
 
     private void Update()
     {
+        bool interactHeld = ReadInteractHeld();
+        bool interactPressed = interactHeld && !interactWasHeld;
+        interactWasHeld = interactHeld; // 잠금 중 입력도 기억해서 해제 직후 오동작 방지
+        if (!IsInteractionAllowed)
+        {
+            CurrentPrompt = string.Empty;
+            return;
+        }
+
         ItemInteractionTarget target = FindNearestTarget();
         float targetDistance = GetTargetDistance(target);
         float carryDistance = carryController == null
@@ -75,18 +89,6 @@ public class PlayerItemInteraction : MonoBehaviour
                 ? string.Empty
                 : target.GetInteractionPrompt(inventory);
         }
-
-        bool interactHeld = inputActions.Player.Interact.IsPressed();
-
-        // E 키를 직접 확인하는 보조 경로입니다.
-        // 한 프레임 입력을 놓치지 않도록 눌림 상태를 기억합니다.
-        if (Keyboard.current != null)
-        {
-            interactHeld |= Keyboard.current.eKey.isPressed;
-        }
-
-        bool interactPressed = interactHeld && !interactWasHeld;
-        interactWasHeld = interactHeld;
 
         if (interactPressed && carryIsNearest)
         {
@@ -124,6 +126,12 @@ public class PlayerItemInteraction : MonoBehaviour
         }
     }
 
+    private bool ReadInteractHeld()
+    {
+        return inputActions.Player.Interact.IsPressed() ||
+            (Keyboard.current != null && Keyboard.current.eKey.isPressed); // 기존 E 보조 입력 유지
+    }
+
     private ItemInteractionTarget FindNearestTarget()
     {
         // 상자를 들고 있으면 손에 든 상자 놓기만 허용합니다.
@@ -134,12 +142,14 @@ public class PlayerItemInteraction : MonoBehaviour
             return null;
         }
 
-        int hitCount = Physics.OverlapSphereNonAlloc(
-            transform.position,
-            interactionRange,
-            interactionHits,
-            ~0,
-            QueryTriggerInteraction.Ignore);
+        int hitCount;
+        do
+        {
+            hitCount = Physics.OverlapSphereNonAlloc(transform.position, interactionRange,
+                interactionHits, ~0, QueryTriggerInteraction.Ignore);
+            if (hitCount < interactionHits.Length) break;
+            System.Array.Resize(ref interactionHits, interactionHits.Length * 2); // 검색 누락 없이 다시 조회
+        } while (true);
 
         ItemInteractionTarget nearest = null;
         float bestDistance = float.MaxValue;
@@ -149,7 +159,8 @@ public class PlayerItemInteraction : MonoBehaviour
             ItemInteractionTarget target =
                 interactionHits[i].GetComponentInParent<ItemInteractionTarget>();
 
-            if (target == null)
+            if (target == null || !target.CanSelect(inventory) ||
+                !InteractionReachability.CanReach(transform, target.transform, interactionHits[i]))
             {
                 continue;
             }

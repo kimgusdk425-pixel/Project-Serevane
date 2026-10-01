@@ -27,6 +27,12 @@ public class SceneFlowController : MonoBehaviour
         {
             player.SetControlEnabled(false); // 중력은 유지하고 이동 입력만 멈추기
 
+            PlayerItemInteraction interaction = player.GetComponent<PlayerItemInteraction>();
+            if (interaction != null)
+            {
+                interaction.enabled = false; // 실제 E 입력 담당도 종료 시 함께 잠금
+            }
+
             PlayerCarryController carry = player.GetComponent<PlayerCarryController>();
             if (carry != null)
             {

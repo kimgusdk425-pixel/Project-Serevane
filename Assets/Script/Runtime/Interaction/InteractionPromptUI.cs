@@ -34,12 +34,12 @@ public class InteractionPromptUI : MonoBehaviour
 
         string message = string.Empty;
 
-        if (itemInteraction != null && !string.IsNullOrEmpty(itemInteraction.CurrentPrompt))
+        if (itemInteraction != null)
         {
-            message = itemInteraction.CurrentPrompt; // 열쇠·문 안내를 우선 표시
+            message = itemInteraction.IsInteractionAllowed
+                ? itemInteraction.CurrentPrompt : string.Empty; // 통합 담당자가 고른 대상만 표시
         }
-
-        if (message.Length == 0 && carryController != null)
+        else if (carryController != null && carryController.CanInteract)
         {
             if (carryController.IsHolding)
             {

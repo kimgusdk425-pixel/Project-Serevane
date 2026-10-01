@@ -17,6 +17,7 @@ public class PlayerMovement : MonoBehaviour
     private float verticalVelocity; // 떨어지는 속도
     private Vector3 spawnPos; // 시작 위치
     private bool canControl = true; // 이동·점프 입력 허용 여부
+    public bool IsControlEnabled => canControl && isActiveAndEnabled; // 다른 행동도 같은 조작 잠금을 확인
 
     private void Awake()
     {

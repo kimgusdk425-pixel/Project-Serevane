@@ -9,6 +9,8 @@ public class LockedDoor : ItemInteractionTarget
     private Vector3 closedPosition;
     private bool isOpen;
 
+    public override bool CanSelect(PlayerInventory inventory) => base.CanSelect(inventory) && !isOpen; // 열쇠 없는 잠긴 문은 안내 유지
+
     private void Awake()
     {
         closedPosition = transform.position; // 시작 위치를 닫힌 위치로 기억

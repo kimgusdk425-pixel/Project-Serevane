@@ -5,6 +5,10 @@ public class PickupItem : ItemInteractionTarget
     [SerializeField] private ItemType itemType = ItemType.Key; // 주울 아이템 종류
     [SerializeField] private string itemName = "KEY"; // 안내 문구에 표시할 이름
 
+    public override bool CanSelect(PlayerInventory inventory) =>
+        base.CanSelect(inventory) && inventory != null &&
+        inventory.CurrentItem == ItemType.None && itemType != ItemType.None; // 받을 수 없는 아이템은 후보에서 제외
+
     public override string GetInteractionPrompt(PlayerInventory inventory)
     {
         if (inventory == null || inventory.CurrentItem != ItemType.None)
