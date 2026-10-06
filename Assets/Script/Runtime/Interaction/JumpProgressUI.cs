@@ -38,6 +38,7 @@ public class JumpProgressUI : MonoBehaviour
     {
         if (label == null || progress == null) return;
         string notice = noticeUntil > Time.unscaledTime ? "JUMP UP!\n" : "LIGHT FRAGMENT\n";
-        label.text = $"{notice}{progress.CollectedFragments}/{progress.MaxFragments}   Jump +{progress.JumpBonus:0.0}";
+        if (progress.CollectedFragments >= progress.MaxFragments) notice = "JUMP MAX\n";
+        label.text = $"{notice}{progress.CollectedFragments}/{progress.MaxFragments}   Jump +{progress.JumpBonus:0.00}";
     }
 }

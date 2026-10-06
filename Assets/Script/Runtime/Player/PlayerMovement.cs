@@ -5,9 +5,12 @@ using UnityEngine.InputSystem;
 public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 3f; // 이동 속도
+    [SerializeField, Min(1f)] private float airSpeedMultiplier = 1.1f; // 공중에서는 조금 더 멀리 이동
     [SerializeField] private float gravity = -9.81f; // 중력 값
     [SerializeField] private float jumpHeight = 1.2f; // 점프 높이
     [SerializeField] private float turnSpeed = 10f; // 회전 속도
+    [SerializeField, Min(0f)] private float coyoteSeconds = 0.1f; // 발판을 벗어난 직후에도 점프 허용
+    [SerializeField, Min(0f)] private float jumpBufferSeconds = 0.1f; // 착지 직전 누른 점프를 잠깐 기억
     [SerializeField] private bool useStrictSurfaceCollision; // 지정 발판의 모서리 타기를 막을 씬에서만 사용
     private bool useSideScrollControls; // 옆 카메라로 바뀐 뒤에만 추격 조작 사용
 
@@ -21,6 +24,9 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 spawnPos; // 시작 위치
     private Quaternion spawnRotation;
     private bool canControl = true; // 이동·점프 입력 허용 여부
+    private float lastGroundedTime = float.NegativeInfinity;
+    private float lastJumpPressedTime = float.NegativeInfinity;
+    private bool canUseGroundJump; // 한 번 떠오르면 착지 전까지 추가 점프 금지
     private readonly RaycastHit[] surfaceHits = new RaycastHit[32]; // 매 프레임 새 배열 생성 방지
 
     public float CurrentJumpHeight => jumpHeight + (jumpProgress != null ? jumpProgress.JumpBonus : 0f);
@@ -47,6 +53,7 @@ public class PlayerMovement : MonoBehaviour
     {
         inputActions.Player.Disable(); // Player 맵 끄기
         characterController.stepOffset = groundedStepOffset; // 다른 이동 담당으로 넘길 때 원래 값 복원
+        ClearJumpGrace();
     }
 
     private void OnDestroy()
@@ -60,7 +67,11 @@ public class PlayerMovement : MonoBehaviour
             ? Vector2.ClampMagnitude(inputActions.Player.Move.ReadValue<Vector2>(), 1f)
             : Vector2.zero; // 종료 후에는 입력만 무시
         Vector3 moveDir = ToCameraSpace(input); // 카메라 기준 방향
-        Vector3 movement = moveDir * moveSpeed; // 평면 이동량
+        bool grounded = characterController.isGrounded;
+        if (grounded && verticalVelocity < 0f) verticalVelocity = -2f; // 바닥에 붙이기
+        bool startedJump = TryJump(grounded, canControl && inputActions.Player.Jump.WasPressedThisFrame(), Time.time);
+        bool jumping = !grounded || startedJump;
+        Vector3 movement = moveDir * moveSpeed * (jumping ? airSpeedMultiplier : 1f); // 점프 시작부터 공중 속도 적용
 
         if (moveDir.sqrMagnitude > 0.001f) // 입력 있을 때만
         {
@@ -70,16 +81,6 @@ public class PlayerMovement : MonoBehaviour
             {
                 transform.rotation = nextRotation; // 상자가 벽을 통과하지 않을 때만 회전
             }
-        }
-
-        if (characterController.isGrounded && verticalVelocity < 0f) // 땅에 닿았으면
-        {
-            verticalVelocity = -2f; // 바닥에 붙이기
-        }
-
-        if (canControl && characterController.isGrounded && inputActions.Player.Jump.WasPressedThisFrame()) // 땅+Space
-        {
-            verticalVelocity = Mathf.Sqrt(CurrentJumpHeight * -2f * gravity); // 기본 높이+강화를 위쪽 속도로 변환
         }
 
         verticalVelocity += gravity * Time.deltaTime; // 낙하 가속
@@ -103,6 +104,29 @@ public class PlayerMovement : MonoBehaviour
             ? groundedStepOffset : 0f; // 공중에서는 작은 턱 넘기로 점프 높이가 더해지지 않게 함
         if (useStrictSurfaceCollision) step = LimitNoClimbMovement(step); // 기존 추격 씬에는 추가 검사하지 않음
         characterController.Move(step); // 플레이어 몸과 들고 있는 상자 모두 통과하지 않을 때 이동
+    }
+
+    private bool TryJump(bool grounded, bool pressed, float now)
+    {
+        if (!canControl) { ClearJumpGrace(); return false; }
+        if (grounded && verticalVelocity <= 0f)
+        {
+            lastGroundedTime = now;
+            canUseGroundJump = true;
+        }
+        if (pressed) lastJumpPressedTime = now;
+        if (!canUseGroundJump || now - lastGroundedTime > coyoteSeconds ||
+            now - lastJumpPressedTime > jumpBufferSeconds) return false;
+        verticalVelocity = Mathf.Sqrt(CurrentJumpHeight * -2f * gravity);
+        ClearJumpGrace(); // 입력 여유를 사용해도 공중 추가 점프는 금지
+        return true;
+    }
+
+    private void ClearJumpGrace()
+    {
+        lastGroundedTime = float.NegativeInfinity;
+        lastJumpPressedTime = float.NegativeInfinity;
+        canUseGroundJump = false;
     }
 
     private Vector3 LimitNoClimbMovement(Vector3 step)
@@ -144,6 +168,7 @@ public class PlayerMovement : MonoBehaviour
     public void SetControlEnabled(bool enabled)
     {
         canControl = enabled; // 중력은 유지하고 조작만 잠그기
+        if (!enabled) ClearJumpGrace(); // 연출 전 입력이 조작 복구 직후 발동하지 않음
     }
 
     public void SetSideScrollControls(bool enabled)
@@ -160,6 +185,7 @@ public class PlayerMovement : MonoBehaviour
 
         float bounceSpeed = Mathf.Sqrt(height * -2f * gravity); // 원하는 높이를 위쪽 속도로 변환
         verticalVelocity = Mathf.Max(verticalVelocity, bounceSpeed); // 이미 뛰었다면 더 약하게 만들지 않음
+        ClearJumpGrace(); // 충격으로 뜬 뒤 추가 점프 방지
     }
 
     public void SetRespawnPoint(Vector3 position, Quaternion rotation)
@@ -173,6 +199,7 @@ public class PlayerMovement : MonoBehaviour
         characterController.enabled = false; // 충돌 잠시 해제
         transform.SetPositionAndRotation(spawnPos, spawnRotation); // 체크포인트 위치와 방향으로
         verticalVelocity = 0f; // 낙하 속도 초기화
+        ClearJumpGrace(); // 재시작 전 점프 입력을 가져오지 않음
         characterController.enabled = true; // 충돌 복구
     }
 

@@ -4,11 +4,13 @@ public class ChallengeFragmentReward : MonoBehaviour
 {
     [SerializeField] private TimedCollectionChallenge challenge;
     [SerializeField] private JumpFragmentPickup reward;
+    [SerializeField] private GameObject rewardGroup; // 작은 빛 무리는 부모 오브젝트로 함께 공개
+    private GameObject RewardObject => rewardGroup != null ? rewardGroup : (reward != null ? reward.gameObject : null);
     private bool revealed;
 
     private void Awake()
     {
-        if (reward != null) reward.gameObject.SetActive(false); // 성공 전에는 획득 불가
+        if (RewardObject != null) RewardObject.SetActive(false); // 성공 전에는 획득 불가
     }
 
     private void OnEnable()
@@ -23,8 +25,8 @@ public class ChallengeFragmentReward : MonoBehaviour
 
     private void Reveal()
     {
-        if (revealed || reward == null) return;
+        if (revealed || RewardObject == null) return;
         revealed = true;
-        reward.gameObject.SetActive(true); // 자동 강화가 아니라 직접 닿아야 획득
+        RewardObject.SetActive(true); // 자동 강화가 아니라 직접 닿아야 획득
     }
 }
