@@ -87,7 +87,7 @@ public class InventoryUI : MonoBehaviour
 
         if (currentItem == ItemType.Key)
         {
-            itemText.text = "[ KEY ]  열쇠";
+            itemText.text = "[ KEY ]"; // 기본 TMP 폰트에서도 깨지지 않도록 영어만 표시
         }
     }
 }
