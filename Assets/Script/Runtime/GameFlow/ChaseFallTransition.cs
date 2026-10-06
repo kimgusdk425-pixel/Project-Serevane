@@ -18,10 +18,14 @@ public class ChaseFallTransition : MonoBehaviour
             cameraFollow == null || landingReturnPoint == null) return;
         transitioning = true;
         if (chaseStart != null) { chaseStart.StopAllCoroutines(); chaseStart.enabled = false; }
-        if (chaseRespawn != null) { chaseRespawn.StopAllCoroutines(); chaseRespawn.enabled = false; }
-        monster.enabled = false; // 낙하 중 다시 잡힘 판정을 하지 않음
-        monster.GetComponent<CharacterController>().enabled = false;
-        monster.transform.position = player.transform.position + new Vector3(2.5f, 0.2f, -2f);
+        if (!monster.BeginTraversal())
+        {
+            transitioning = false;
+            Debug.LogError("ChaseFallTransition: 추격자 낙하 경로를 연결해야 합니다.", this);
+            return;
+        }
+        cameraFollow.BeginTraversalView(monster.transform); // 떨어지는 동안부터 넓은 옆 구도로 전환
+        player.SetSideScrollControls(true); // 착지 후에도 D 전진 유지
         player.SetControlEnabled(false); // 플레이어 중력은 계속 작동
         StartCoroutine(FallTogether(player));
     }
@@ -29,21 +33,26 @@ public class ChaseFallTransition : MonoBehaviour
     private IEnumerator FallTogether(PlayerMovement player)
     {
         CharacterController body = player.GetComponent<CharacterController>();
-        float velocity = -2f;
         float elapsed = 0f;
         while (elapsed < 5f)
         {
             elapsed += Time.deltaTime;
-            velocity -= 9.81f * Time.deltaTime;
-            monster.transform.position += Vector3.up * velocity * Time.deltaTime;
-            if (elapsed > 0.4f && body.isGrounded) break; // 아래 받침에 실제 착지한 뒤 구도 복구
+            bool reachedLowerFloor = player.transform.position.y <= landingReturnPoint.position.y + 0.5f;
+            if (elapsed > 0.4f && body.isGrounded && reachedLowerFloor) break; // 위쪽 바닥 접촉을 착지로 오인하지 않음
             yield return null;
         }
-        monster.gameObject.SetActive(false); // 바위는 아래로 사라지고 추격은 종료
         player.SetRespawnPoint(landingReturnPoint.position, landingReturnPoint.rotation);
-        if (!body.isGrounded) player.Respawn(); // 낙하가 막히거나 착지를 놓친 경우 안전한 도착점
-        player.SetSideScrollControls(false);
-        cameraFollow.SnapToTarget();
+        if (!body.isGrounded || player.transform.position.y > landingReturnPoint.position.y + 0.5f)
+            player.Respawn(); // 낙하가 막히거나 착지를 놓친 경우 안전한 도착점
+        monster.RecordTraversalCheckpoint(); // 현재 위치는 유지하고 복귀 설정만 기억
+        player.SetSideScrollControls(true); // 구간 중간에 앞 방향이 W로 바뀌지 않게 함
         player.SetControlEnabled(true);
+    }
+
+    public void ResetForRetry()
+    {
+        StopAllCoroutines();
+        transitioning = false;
+        if (chaseStart != null) chaseStart.enabled = true;
     }
 }

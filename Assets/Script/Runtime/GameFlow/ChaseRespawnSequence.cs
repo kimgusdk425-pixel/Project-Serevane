@@ -8,6 +8,7 @@ public class ChaseRespawnSequence : MonoBehaviour
     [SerializeField] private CameraFollow cameraFollow; // 카메라 위치 동기화
     [SerializeField] private CanvasGroup fadeOverlay; // 화면을 덮는 검은 UI
     [SerializeField] private ChaseStartSequence startSequence; // 재도전 때 낙하 연출도 복원
+    [SerializeField] private ChaseFallTransition fallTransition; // 낙하 전 실패 시 진입 기록 복원
     [SerializeField, Min(0f)] private float fadeOutSeconds = 0.45f;
     [SerializeField, Min(0f)] private float blackHoldSeconds = 0.25f;
     [SerializeField, Min(0f)] private float fadeInSeconds = 0.8f;
@@ -25,6 +26,7 @@ public class ChaseRespawnSequence : MonoBehaviour
 
     public bool TryBeginCatch()
     {
+        if (!isActiveAndEnabled) return false;
         if (isRestarting)
         {
             return true; // 이미 연출 중이면 중복 실행 방지
@@ -49,18 +51,24 @@ public class ChaseRespawnSequence : MonoBehaviour
         yield return new WaitForSecondsRealtime(blackHoldSeconds); // 짧은 숨 고르기
 
         player.Respawn(); // 어두운 동안 위치 복원
-        player.SetSideScrollControls(false); // 재도전 시작은 원래 W 전진 조작
         monster.ResetToSpawn();
-        if (startSequence != null)
+        bool resumeTraversal = monster.HasTraversalCheckpoint;
+        player.SetSideScrollControls(resumeTraversal); // 아래에서는 D 전진, 낙하 전 출발점에서는 W 전진
+        if (!monster.HasTraversalCheckpoint && startSequence != null)
         {
+            if (fallTransition != null) fallTransition.ResetForRetry();
+            startSequence.enabled = true;
             startSequence.ResetForRetry(); // 돌을 올리고 추격자를 다시 대기시킴
         }
-        cameraFollow.SnapToTarget(); // 이전 위치에서 카메라가 날아오지 않게
+        if (resumeTraversal)
+            cameraFollow.BeginTraversalView(monster.transform, true); // 아래 체크포인트도 옆 구도로 복귀
+        else
+            cameraFollow.SnapToTarget(); // 낙하 전 재시작은 처음 구도로 복귀
         yield return null; // 새 출발점 화면이 그려질 시간
 
         yield return Fade(1f, 0f, fadeInSeconds); // 새 출발점을 서서히 보여 주기
         player.SetControlEnabled(true);
-        if (startSequence == null)
+        if (monster.HasTraversalCheckpoint || startSequence == null)
         {
             monster.enabled = true; // 시작 연출이 없는 기존 씬은 바로 추격
         }

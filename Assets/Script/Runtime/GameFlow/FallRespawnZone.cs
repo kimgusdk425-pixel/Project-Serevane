@@ -6,12 +6,14 @@ public class FallRespawnZone : MonoBehaviour
 {
     [SerializeField] private CanvasGroup fadeOverlay;
     [SerializeField] private CameraFollow cameraFollow;
+    [SerializeField] private ChaseRespawnSequence chaseRespawn; // 추락도 추격자와 함께 복귀
     private bool resetting;
 
     private void OnTriggerEnter(Collider other)
     {
         PlayerMovement player = other.GetComponentInParent<PlayerMovement>();
         if (resetting || player == null || fadeOverlay == null || cameraFollow == null) return;
+        if (chaseRespawn != null && chaseRespawn.TryBeginCatch()) return;
         StartCoroutine(ReturnToCheckpoint(player));
     }
 
