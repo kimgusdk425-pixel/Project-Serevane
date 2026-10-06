@@ -74,6 +74,12 @@ public class ChaseStartSequence : MonoBehaviour
 
         yield return new WaitForSeconds(impactPauseSeconds);
         cameraFollow.BeginChaseView(); // 오른쪽 옆에서 플레이어와 바위를 함께 보여 줌
+        float transitionTime = 0f;
+        while (!cameraFollow.IsChaseViewSettled && transitionTime < 1.5f)
+        {
+            transitionTime += Time.deltaTime;
+            yield return null; // 카메라가 옆에 도착할 때까지 이전 조작으로 움직이지 않음
+        }
         player.SetSideScrollControls(true); // 옆 구도가 된 순간부터 A/D 앞뒤, W/S 좌우
         player.SetControlEnabled(true); // 카메라와 조작이 모두 바뀐 뒤 입력 복구
         yield return new WaitForSeconds(chaseDelaySeconds);

@@ -22,6 +22,12 @@ public class SceneFlowController : MonoBehaviour
         }
 
         isDemoComplete = true;
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+        {
+            CameraFollow cameraFollow = mainCamera.GetComponent<CameraFollow>();
+            if (cameraFollow != null) cameraFollow.ReleaseCursorForUI(); // 종료 화면 버튼은 마우스로 누를 수 있게
+        }
 
         if (player != null)
         {
