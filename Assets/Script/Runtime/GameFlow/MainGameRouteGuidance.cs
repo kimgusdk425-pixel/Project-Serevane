@@ -15,10 +15,12 @@ public class MainGameRouteGuidance : MonoBehaviour
             z < 25f ? "MOVE THE BOX TO THE LEDGE   |   E: PICK UP / PUT DOWN" :
             z < 39f ? "PLACE THE SECOND BOX ON THE GOLD PLATE" :
             z < 53f ? "FIND THE KEY AND OPEN THE DOOR   |   E" :
-            z < 300f ? "EXPLORE THE OPEN VALLEY   |   GOLD LIGHTS INCREASE YOUR JUMP" :
+            z < 276f ? "EXPLORE THE OPEN VALLEY   |   GOLD LIGHTS INCREASE YOUR JUMP" :
+            z < 300f ? "GATHER GOLD LIGHTS, THEN JUMP TO THE HIGH EXIT   |   SPACE: JUMP" :
             z < 320f ? "FOLLOW THE PATH..." :
             z < 380f ? "ESCAPE   |   WHEN SIDE VIEW: D FORWARD / A BACK   W/S SIDESTEP" :
-            "CLIMB THE FLOATING STEPS   |   WASD: MOVE   SPACE: JUMP";
+            z < 470f ? "KEEP RUNNING AND JUMP   |   D FORWARD / A BACK   W/S SIDESTEP   SPACE: JUMP" :
+            "USE YOUR POWERED JUMP TO ESCAPE   |   D + SPACE";
         if (message == lastMessage) return;
         label.text = message;
         lastMessage = message; // 안내가 바뀔 때만 UI 갱신
