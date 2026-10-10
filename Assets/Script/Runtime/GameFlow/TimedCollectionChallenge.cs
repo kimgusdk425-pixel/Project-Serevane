@@ -9,6 +9,9 @@ public class TimedCollectionChallenge : MonoBehaviour
     [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 3f; // 결과 문구 표시 시간
     [SerializeField] private TMP_Text statusText; // 화면 위쪽 진행 안내
 
+    [SerializeField, Min(0f)] private float warningSeconds = 5f; // 마지막 몇 초부터 시간 색을 강조
+    [SerializeField] private Color warningColor = new Color(1f, 0.35f, 0.22f);
+
     private readonly List<TimedCollectionPickup> coins = new List<TimedCollectionPickup>();
     private TimedCollectionPickup starter;
     private double endsAt; // UI와 접촉 판정이 함께 사용하는 종료 시각
@@ -127,7 +130,7 @@ public class TimedCollectionChallenge : MonoBehaviour
         {
             running = false;
             completed = true;
-            ShowResult("SUCCESS!");
+            ShowResult("SUCCESS!\nCOLLECT YOUR GOLD REWARD");
             Completed?.Invoke(); // 최초 성공에서만 알림: 재시도로 보상 복제 방지
         }
         else
@@ -161,7 +164,10 @@ public class TimedCollectionChallenge : MonoBehaviour
 
         lastShownSeconds = shownSeconds;
         lastShownCount = collectedCount;
-        statusText.text = $"BONUS  {shownSeconds}s     {collectedCount}/{coins.Count}";
+        string timer = $"{shownSeconds}s";
+        if (shownSeconds <= warningSeconds)
+            timer = $"<color=#{ColorUtility.ToHtmlStringRGB(warningColor)}>{timer}</color>";
+        statusText.text = $"TIME TRIAL   {timer}     LIGHTS {collectedCount}/{coins.Count}";
     }
 
     private void ShowResult(string message)

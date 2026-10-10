@@ -5,13 +5,19 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/MainGame_Exploration.unity
+    guid: b35f218b6c1899a4db8072d9d0082c24
+  - enabled: 1
+    path: Assets/Scenes/MainGame_Chase.unity
+    guid: e4b3bf969b909cb43b6a974c2f38c9f8
   - enabled: 0
     path: Assets/Scenes/Title.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 0
     path: Assets/Scenes/DEV_Test.unity
     guid: e5bf979179bd96b47b28056464a166fd
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/MainGame.unity
     guid: 3a944bbfa7a6c3043b67418024026b12
   m_configObjects:

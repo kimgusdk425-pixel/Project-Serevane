@@ -9,6 +9,7 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private Vector3 threatViewOffset = new Vector3(0f, 4f, 6f); // 뒤를 돌아보는 구도
     [SerializeField] private Vector3 chaseSideOffset = new Vector3(11f, 5.5f, -1.5f); // D가 화면 오른쪽인 횡스크롤 구도
     [SerializeField] private Vector3 traversalSideOffset = new Vector3(20f, 7f, 0f); // 낙하·점프 구간은 더 멀리서 발판까지 보여 줌
+    [SerializeField, Min(0f)] private float maxTraversalExtraDistance = 6f;
     [SerializeField] private bool enableMouseOrbit; // MainGame 탐험에서만 켜는 마우스 시점
     [SerializeField, Min(0.01f)] private float mouseSensitivity = 0.12f; // 마우스 1픽셀당 회전 각도
     [SerializeField] private float minPitch = 5f; // 바닥 아래로 카메라가 내려가지 않도록 제한
@@ -27,6 +28,9 @@ public class CameraFollow : MonoBehaviour
     private PlayerMovement playerMovement;
     private float wantedYaw, wantedPitch, yaw, pitch, orbitDistance;
     private readonly RaycastHit[] cameraHits = new RaycastHit[32]; // 검사할 때마다 배열 생성하지 않음
+    private Vector3 finalViewStart;
+    private float finalViewElapsed;
+    private bool finalLandingView;
     private bool cursorOwned;
     private CursorLockMode previousCursorLock;
     private bool previousCursorVisible;
@@ -38,7 +42,8 @@ public class CameraFollow : MonoBehaviour
         Follow,
         ThreatReveal,
         ChaseSide,
-        TraversalSide
+        TraversalSide,
+        FinalFall
     }
 
     private void Awake()
@@ -167,11 +172,13 @@ public class CameraFollow : MonoBehaviour
             ViewMode.ThreatReveal => threatViewOffset,
             ViewMode.ChaseSide => chaseSideOffset,
             ViewMode.TraversalSide => GetTraversalOffset(),
+            ViewMode.FinalFall => GetFinalFallOffset(),
             _ => GetFollowOffset(Time.deltaTime)
         };
         Vector3 want = target.position + viewOffset; // 현재 구도의 위치
         want = ResolveCameraPosition(want);
-        float t = 1f - Mathf.Exp(-smooth * Time.deltaTime); // 프레임 독립 보간
+        float trackingSpeed = viewMode == ViewMode.FinalFall && finalLandingView ? 2.4f : smooth;
+        float t = 1f - Mathf.Exp(-trackingSpeed * Time.deltaTime); // 프레임 독립 보간
         Vector3 nextPosition = Vector3.Lerp(transform.position, want, t); // 부드럽게 추적
         if (shakeRemaining > 0f)
         {
@@ -227,7 +234,7 @@ public class CameraFollow : MonoBehaviour
     {
         if (threat == null) return traversalSideOffset;
         float separation = Vector3.Distance(target.position, threat.position);
-        float extraDistance = Mathf.Min(separation * 0.35f, 6f); // 거리가 벌어져도 무한히 멀어지지 않음
+        float extraDistance = Mathf.Min(separation * 0.35f, maxTraversalExtraDistance); // 거리가 벌어져도 무한히 멀어지지 않음
         return traversalSideOffset + Vector3.right * extraDistance;
     }
 
@@ -237,6 +244,30 @@ public class CameraFollow : MonoBehaviour
         shakeStrength = Mathf.Max(0f, strength);
     }
 
+    public void BeginFinalFallView()
+    {
+        finalViewStart = target != null ? transform.position - target.position : new Vector3(14f, 5f, 4f);
+        finalViewElapsed = 0f;
+        finalLandingView = false;
+        threat = null;
+        viewMode = ViewMode.FinalFall; // 마지막 낙하는 플레이어만 가까이 추적
+        shakeRemaining = 0f;
+    }
+
+    public void BeginFinalLandingView()
+    {
+        if (target == null || viewMode != ViewMode.FinalFall) return;
+        finalViewStart = transform.position - target.position;
+        finalViewElapsed = 0f;
+        finalLandingView = true;
+    }
+
+    private Vector3 GetFinalFallOffset()
+    {
+        finalViewElapsed += Time.deltaTime;
+        Vector3 endingOffset = finalLandingView ? new Vector3(12f, 4f, 6f) : new Vector3(14f, 5f, 4f);
+        return Vector3.Lerp(finalViewStart, endingOffset, Mathf.SmoothStep(0f, 1f, finalViewElapsed / 1.6f));
+    }
     public void SnapToTarget()
     {
         if (target == null)

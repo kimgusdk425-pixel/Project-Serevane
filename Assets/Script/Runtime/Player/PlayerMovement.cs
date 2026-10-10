@@ -23,6 +23,8 @@ public class PlayerMovement : MonoBehaviour
     private float groundedStepOffset; // 바닥에서 작은 턱을 넘는 원래 높이
     private Vector3 spawnPos; // 시작 위치
     private Quaternion spawnRotation;
+    private Vector3 scriptedDrift;
+    private float driftDuration, driftRemaining;
     private bool canControl = true; // 이동·점프 입력 허용 여부
     private float lastGroundedTime = float.NegativeInfinity;
     private float lastJumpPressedTime = float.NegativeInfinity;
@@ -52,6 +54,7 @@ public class PlayerMovement : MonoBehaviour
     private void OnDisable()
     {
         inputActions.Player.Disable(); // Player 맵 끄기
+        driftRemaining = 0f;
         characterController.stepOffset = groundedStepOffset; // 다른 이동 담당으로 넘길 때 원래 값 복원
         ClearJumpGrace();
     }
@@ -85,6 +88,11 @@ public class PlayerMovement : MonoBehaviour
 
         verticalVelocity += gravity * Time.deltaTime; // 낙하 가속
 
+        if (driftRemaining > 0f)
+        {
+            movement += scriptedDrift * Mathf.SmoothStep(0f, 1f, driftRemaining / driftDuration);
+            driftRemaining = Mathf.Max(0f, driftRemaining - Time.deltaTime);
+        }
         movement.y = verticalVelocity; // 상하 속도 합치기
         Vector3 step = movement * Time.deltaTime;
         if (carryController != null && !carryController.CanMoveHeldBox(step, transform.rotation))
@@ -176,6 +184,13 @@ public class PlayerMovement : MonoBehaviour
         useSideScrollControls = enabled; // 연출 전후의 조작 방식을 전환
     }
 
+    public void BeginScriptedDrift(Vector3 velocity, float duration)
+    {
+        scriptedDrift = Vector3.ProjectOnPlane(velocity, Vector3.up); // 중력과 충돌은 기존 이동에서 유지
+        driftDuration = Mathf.Max(0.01f, duration);
+        driftRemaining = Mathf.Max(0f, duration);
+    }
+
     public void ApplyImpactBounce(float height)
     {
         if (height <= 0f)
@@ -198,6 +213,7 @@ public class PlayerMovement : MonoBehaviour
     {
         characterController.enabled = false; // 충돌 잠시 해제
         transform.SetPositionAndRotation(spawnPos, spawnRotation); // 체크포인트 위치와 방향으로
+        driftRemaining = 0f;
         verticalVelocity = 0f; // 낙하 속도 초기화
         ClearJumpGrace(); // 재시작 전 점프 입력을 가져오지 않음
         characterController.enabled = true; // 충돌 복구

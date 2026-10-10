@@ -43,6 +43,7 @@ public class ChaseRespawnSequence : MonoBehaviour
 
     private IEnumerator RestartAfterCatch()
     {
+        if (monster.TryGetComponent<ChasePresentation>(out var presentation)) presentation.ResetPresentation();
         isRestarting = true;
         player.SetControlEnabled(false); // 화면 전환 중 조작 중지
         monster.enabled = false; // 다시 잡는 동작 잠시 중지

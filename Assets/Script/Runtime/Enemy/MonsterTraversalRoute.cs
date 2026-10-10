@@ -32,6 +32,10 @@ public class MonsterTraversalRoute : MonoBehaviour
     public bool HasLowerCheckpoint { get; private set; }
     public TraversalState State { get; private set; }
     public int NextStep => nextStep;
+    public event System.Action<Vector3, float> Landed;
+    public event System.Action<Vector3> FinalBarrierReached;
+    private float presentationAirTime, presentationFallSpeed;
+    private bool barrierReported;
 
     private void Awake()
     {
@@ -42,6 +46,8 @@ public class MonsterTraversalRoute : MonoBehaviour
     public void BeginFromCurrentPosition()
     {
         if (waypoints == null || waypoints.Length == 0) return;
+        presentationAirTime = presentationFallSpeed = 0f;
+        barrierReported = false;
         nextStep = 0;
         verticalSpeed = 0f;
         jumping = false;
@@ -52,6 +58,23 @@ public class MonsterTraversalRoute : MonoBehaviour
     }
 
     public void Tick(float deltaTime, Transform targetPlayer = null, float runMultiplier = 1f)
+    {
+        if (!IsFollowing || !body.enabled || deltaTime <= 0f) return;
+        TickMovement(deltaTime, targetPlayer, runMultiplier);
+        if (!body.isGrounded)
+        {
+            presentationAirTime += deltaTime;
+            presentationFallSpeed = Mathf.Max(presentationFallSpeed, -verticalSpeed);
+        }
+        else
+        {
+            if (presentationAirTime > .1f)
+                Landed?.Invoke(body.bounds.center + Vector3.down * body.bounds.extents.y + Vector3.up * .08f, presentationFallSpeed);
+            presentationAirTime = presentationFallSpeed = 0f;
+        }
+    }
+
+    private void TickMovement(float deltaTime, Transform targetPlayer, float runMultiplier)
     {
         if (!IsFollowing || !body.enabled || deltaTime <= 0f) return;
         bool grounded = body.isGrounded;
@@ -219,6 +242,11 @@ public class MonsterTraversalRoute : MonoBehaviour
 
     private void WaitAtBlockedStep(float deltaTime)
     {
+        if (!barrierReported && platforms != null && platforms.Length > 1 && FindPlatform(body) == platforms.Length - 2)
+        {
+            barrierReported = true;
+            FinalBarrierReached?.Invoke(body.bounds.center + Vector3.down * body.bounds.extents.y);
+        }
         State = TraversalState.Blocked;
         verticalSpeed = body.isGrounded ? -2f : verticalSpeed + gravity * deltaTime;
         body.Move(Vector3.up * verticalSpeed * deltaTime); // 통과 못 해도 바닥 충돌과 중력은 유지
@@ -245,6 +273,8 @@ public class MonsterTraversalRoute : MonoBehaviour
         body.enabled = false;
         transform.SetPositionAndRotation(retryPoint.position, retryPoint.rotation);
         body.enabled = true; // 실패 암전 중에만 복귀 위치 변경
+        presentationAirTime = presentationFallSpeed = 0f;
+        barrierReported = false;
         nextStep = Mathf.Clamp(retryStep, 0, waypoints.Length - 1);
         launchedJump = false;
         verticalSpeed = 0f;
@@ -256,6 +286,8 @@ public class MonsterTraversalRoute : MonoBehaviour
 
     public void ClearRoute()
     {
+        presentationAirTime = presentationFallSpeed = 0f;
+        barrierReported = false;
         launchedJump = false;
         IsFollowing = false;
         HasLowerCheckpoint = false;

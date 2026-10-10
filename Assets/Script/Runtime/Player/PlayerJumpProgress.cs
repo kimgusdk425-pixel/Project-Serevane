@@ -13,6 +13,12 @@ public class PlayerJumpProgress : MonoBehaviour
     public float JumpBonus => collectedFragments * Mathf.Max(0f, bonusPerFragment);
     public event Action Changed; // UI에 변경만 알리고 UI를 직접 다루지 않음
 
+    public void RestoreFragments(int count)
+    {
+        collectedFragments = Mathf.Clamp(count, 0, MaxFragments);
+        Changed?.Invoke();
+    }
+
     public bool TryCollectFragment()
     {
         if (collectedFragments >= MaxFragments) return false; // 최대 단계에서는 소비하지 않음

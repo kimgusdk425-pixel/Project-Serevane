@@ -67,6 +67,7 @@ public class ChaseStartSequence : MonoBehaviour
             monsterController.enabled = true; // 착지 뒤부터 바위 충돌을 켬
         }
 
+        if (monster.TryGetComponent<ChasePresentation>(out var presentation)) presentation.PlayOpeningImpact();
         player.SetControlEnabled(false); // 카메라가 뒤집힐 동안 방향 입력 잠금
         player.ApplyImpactBounce(bounceHeight); // 충격으로 짧게 위로 뜸
         cameraFollow.ShowThreat(monster.transform); // 플레이어 앞쪽에서 바위를 보여 줌
@@ -100,6 +101,7 @@ public class ChaseStartSequence : MonoBehaviour
             runningSequence = null;
         }
 
+        if (monster.TryGetComponent<ChasePresentation>(out var presentation)) presentation.ResetPresentation();
         hasStarted = false;
         monster.enabled = false;
         if (monsterController != null)

@@ -12,6 +12,12 @@ public class PlayerInventory : MonoBehaviour
     // 아이템이 바뀌면 UI가 즉시 갱신할 수 있도록 알립니다.
     public event Action<ItemType> ItemChanged;
 
+    public void RestoreItem(ItemType itemType)
+    {
+        currentItem = itemType;
+        ItemChanged?.Invoke(currentItem);
+    }
+
     public bool HasItem(ItemType itemType)
     {
         return currentItem == itemType;

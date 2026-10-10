@@ -4,46 +4,33 @@ using UnityEngine;
 public class TimedCollectionPickup : MonoBehaviour
 {
     [SerializeField] private bool isStarter; // 시작 아이템이면 켜고, 코인이면 끔
-    [SerializeField] private Color pickupColor = new Color(1f, 0.75f, 0.12f, 1f); // 임시 오브젝트 색
+    [SerializeField] private Color pickupColor = new Color(1f, 0.75f, 0.12f, 1f); // 시작 아이템과 미션 코인을 구분하는 색
+    [SerializeField, Range(0f, 1f)] private float emissionStrength = 0.6f; // 색상과 별도로 발광 세기 조절
 
     public bool IsStarter => isStarter;
 
     private void OnEnable()
     {
-        Renderer visual = GetComponent<Renderer>();
-        if (visual == null)
-        {
-            return;
-        }
-
-        // 공유 머티리얼을 바꾸지 않고 이 오브젝트의 색만 지정합니다.
+        Renderer[] visuals = GetComponentsInChildren<Renderer>(true);
+        if (visuals.Length == 0) return;
         MaterialPropertyBlock colors = new MaterialPropertyBlock();
-        visual.GetPropertyBlock(colors);
-        colors.SetColor("_BaseColor", pickupColor);
-        colors.SetColor("_Color", pickupColor);
-        visual.SetPropertyBlock(colors);
+        foreach (Renderer visual in visuals)
+        {
+            colors.Clear();
+            visual.GetPropertyBlock(colors);
+            colors.SetColor("_BaseColor", pickupColor);
+            colors.SetColor("_Color", pickupColor);
+            colors.SetColor("_EmissionColor", pickupColor * emissionStrength); // 공유 재질을 복제하지 않고 색과 발광 적용
+            visual.SetPropertyBlock(colors);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.GetComponentInParent<PlayerMovement>() == null)
-        {
-            return; // 상자나 몬스터가 닿아도 수집하지 않음
-        }
-
+        if (other.GetComponentInParent<PlayerMovement>() == null) return;
         TimedCollectionChallenge challenge = GetComponentInParent<TimedCollectionChallenge>();
-        if (challenge == null)
-        {
-            return;
-        }
-
-        if (isStarter)
-        {
-            challenge.TryStart();
-        }
-        else
-        {
-            challenge.Collect(this);
-        }
+        if (challenge == null) return;
+        if (isStarter) challenge.TryStart();
+        else challenge.Collect(this);
     }
 }

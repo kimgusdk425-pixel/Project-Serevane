@@ -24,6 +24,7 @@ public class TofuMonster : MonoBehaviour
     private Vector3 spawnPosition; // 적의 처음 위치
     private Quaternion spawnRotation; // 적의 처음 방향
     private Quaternion visualSpawnRotation; // 재도전 때 바위 무늬 방향
+    private MonsterGroundTraversal groundTraversal; // 밝은 구간의 바위 넘기와 중력
     private MonsterTraversalRoute traversalRoute; // 경로가 있는 MainGame만 점프 추격
     public bool HasTraversalCheckpoint => traversalRoute != null && traversalRoute.HasLowerCheckpoint;
 
@@ -31,6 +32,7 @@ public class TofuMonster : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         traversalRoute = GetComponent<MonsterTraversalRoute>();
+        groundTraversal = GetComponent<MonsterGroundTraversal>();
         spawnPosition = transform.position;
         spawnRotation = transform.rotation;
         if (rollingVisual != null)
@@ -41,6 +43,7 @@ public class TofuMonster : MonoBehaviour
 
     private void OnEnable()
     {
+        if (groundTraversal != null) groundTraversal.ResetMotion();
         speedMultiplier = 1f; // 재시작 후 이전 가속을 가져오지 않음
     }
 
@@ -75,6 +78,8 @@ public class TofuMonster : MonoBehaviour
         Vector3 beforeMove = transform.position;
         if (traversalRoute != null && traversalRoute.IsFollowing)
             traversalRoute.Tick(Time.deltaTime, player, speedMultiplier); // 점프 속도는 경로가 유지하고 달리기만 보정
+        else if (groundTraversal != null && groundTraversal.isActiveAndEnabled)
+            groundTraversal.Tick(movement, Time.deltaTime);
         else controller.Move(movement * Time.deltaTime); // 기존 평지 추격 유지
         if (rollingVisual != null)
         {
@@ -159,6 +164,7 @@ public class TofuMonster : MonoBehaviour
 
     public void ResetToSpawn()
     {
+        if (groundTraversal != null) groundTraversal.ResetMotion();
         speedMultiplier = 1f;
         if (traversalRoute != null && traversalRoute.ResetToCheckpoint()) return;
         if (traversalRoute != null) traversalRoute.ClearRoute();
@@ -174,6 +180,7 @@ public class TofuMonster : MonoBehaviour
     public bool BeginTraversal()
     {
         if (traversalRoute == null) return false;
+        if (groundTraversal != null) groundTraversal.ResetMotion();
         traversalRoute.BeginFromCurrentPosition();
         controller.enabled = true;
         enabled = true;
