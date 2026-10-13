@@ -81,6 +81,7 @@ public class CameraFollow : MonoBehaviour
 
     private void Update()
     {
+        if (PauseMenuController.BlocksGameplayInput) return;
         if (!enableMouseOrbit || Mouse.current == null) return;
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
@@ -102,8 +103,8 @@ public class CameraFollow : MonoBehaviour
     {
         if (!enableMouseOrbit || viewMode != ViewMode.Follow || playerMovement == null ||
             !playerMovement.IsControlEnabled) return; // 추격·연출 중에는 마우스가 구도를 바꾸지 못함
-        wantedYaw = Mathf.Repeat(wantedYaw + delta.x * mouseSensitivity, 360f);
-        wantedPitch = Mathf.Clamp(wantedPitch - delta.y * mouseSensitivity,
+        wantedYaw = Mathf.Repeat(wantedYaw + delta.x * mouseSensitivity * GameSettings.MouseSensitivity, 360f);
+        wantedPitch = Mathf.Clamp(wantedPitch - delta.y * mouseSensitivity * GameSettings.MouseSensitivity,
             Mathf.Min(minPitch, maxPitch), Mathf.Max(minPitch, maxPitch));
     }
 
@@ -162,6 +163,7 @@ public class CameraFollow : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (PauseMenuController.IsPaused) return;
         if (target == null) // 대상 없으면 정지
         {
             return;

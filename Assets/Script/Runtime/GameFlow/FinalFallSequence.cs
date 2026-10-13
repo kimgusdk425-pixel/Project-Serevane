@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(BoxCollider))]
 public class FinalFallSequence : MonoBehaviour
@@ -97,7 +98,7 @@ public class FinalFallSequence : MonoBehaviour
             Bounds floor = landingFloor.bounds;
             bool overFloor = player.transform.position.x >= floor.min.x && player.transform.position.x <= floor.max.x &&
                 player.transform.position.z >= floor.min.z && player.transform.position.z <= floor.max.z;
-            if (elapsed > 0.3f && body.isGrounded && overFloor && body.bounds.min.y <= floor.max.y + 0.15f)
+            if (elapsed > 0.3f && body.isGrounded && overFloor && Mathf.Abs(body.bounds.min.y - floor.max.y) <= 0.2f)
             {
                 HasLanded = true;
                 break;
@@ -107,11 +108,36 @@ public class FinalFallSequence : MonoBehaviour
         if (!HasLanded)
         {
             Debug.LogWarning("FinalFallSequence: 착지가 지연되어 안전한 엔딩 위치로 복원합니다.", this);
-            body.enabled = false;
-            player.transform.SetPositionAndRotation(landingReturnPoint.position, landingReturnPoint.rotation);
-            body.enabled = true;
-            while (!body.isGrounded) yield return null;
-            HasLanded = true;
+            player.SetRespawnPoint(landingReturnPoint.position, landingReturnPoint.rotation);
+            player.Respawn(); // 큰 낙하 속도와 전진 관성을 함께 초기화
+            float recoveryElapsed = 0f;
+            while (recoveryElapsed < 2f && !HasLanded)
+            {
+                recoveryElapsed += Time.deltaTime;
+                Bounds floor = landingFloor.bounds;
+                Vector3 position = player.transform.position;
+                HasLanded = body.isGrounded && position.x >= floor.min.x && position.x <= floor.max.x &&
+                    position.z >= floor.min.z && position.z <= floor.max.z &&
+                    Mathf.Abs(body.bounds.min.y - floor.max.y) <= 0.2f;
+                yield return null;
+            }
+            if (!HasLanded)
+            {
+                Debug.LogWarning("FinalFallSequence: 복구 착지도 실패하여 현재 구간을 다시 시작합니다.", this);
+                string sceneName = SceneManager.GetActiveScene().name;
+                if (Application.CanStreamedLevelBeLoaded(sceneName))
+                {
+                    StageTransferState.Capture(sceneName, player.GetComponent<PlayerJumpProgress>(), player.GetComponent<PlayerInventory>());
+                    fadeOverlay.alpha = 1f;
+                    yield return SceneManager.LoadSceneAsync(sceneName);
+                }
+                else
+                {
+                    player.SetControlEnabled(true); // 빌드 제외 검사 씬에서도 무한 잠금은 남기지 않음
+                    fadeOverlay.alpha = 0f;
+                }
+                yield break; // 실제 착지 없이 성공 문구를 표시하지 않음
+            }
         }
         if (sceneSun != null) sceneSun.intensity = 0.09f;
         RenderSettings.ambientLight = new Color(0.10f, 0.14f, 0.20f);

@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class TimedCollectionChallenge : MonoBehaviour
 {
+    public event System.Action Started, Failed;
     public event System.Action Completed; // 보상은 별도 컴포넌트가 성공 신호를 받아 처리
     [SerializeField, Min(1f)] private float timeLimit = 20f; // 도전 제한 시간
     [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 3f; // 결과 문구 표시 시간
@@ -22,6 +23,15 @@ public class TimedCollectionChallenge : MonoBehaviour
     private int lastShownCount = -1;
     private bool running;
     private bool completed;
+    public bool IsRunning => running;
+    public bool IsCompleted => completed;
+    public bool IsAwaitingRetry => awaitingRetry;
+    public bool IsShowingResult => resultTimeLeft > 0f;
+    public int TargetCount => coins.Count;
+    public float TimeLimit => timeLimit;
+    public TMP_Text StatusText => statusText;
+    public bool IsNearStart(PlayerMovement player, float range = 7f) => player != null && starter != null &&
+        (player.transform.position - starter.transform.position).sqrMagnitude <= range * range;
     private bool awaitingRetry; // 실패 후 안내를 재도전할 때까지 유지
 
     private void Awake()
@@ -108,6 +118,7 @@ public class TimedCollectionChallenge : MonoBehaviour
 
         statusText.gameObject.SetActive(true);
         ShowProgress();
+        Started?.Invoke();
     }
 
     public void Collect(TimedCollectionPickup coin)
@@ -130,7 +141,7 @@ public class TimedCollectionChallenge : MonoBehaviour
         {
             running = false;
             completed = true;
-            ShowResult("SUCCESS!\nCOLLECT YOUR GOLD REWARD");
+            ShowResult("도전 성공 · 금빛 보상을 받으세요");
             Completed?.Invoke(); // 최초 성공에서만 알림: 재시도로 보상 복제 방지
         }
         else
@@ -141,6 +152,7 @@ public class TimedCollectionChallenge : MonoBehaviour
 
     private void Fail()
     {
+        if (!running) return;
         running = false;
         awaitingRetry = true;
         retryAvailableAt = Time.time + 0.5f; // 제자리에서 즉시 다시 시작되지 않도록 잠시 잠금
@@ -151,7 +163,8 @@ public class TimedCollectionChallenge : MonoBehaviour
         }
 
         starter.gameObject.SetActive(true); // 다시 닿으면 재도전 가능
-        ShowResult("TIME UP\nSTEP AWAY AND TOUCH AGAIN"); // 나갔다 다시 닿아야 하는 규칙을 명시
+        Failed?.Invoke();
+        ShowResult("시간 종료 · 다시 도전할 수 있어요"); // 나갔다 다시 닿아야 하는 규칙을 명시
     }
 
     private void ShowProgress()
@@ -164,10 +177,10 @@ public class TimedCollectionChallenge : MonoBehaviour
 
         lastShownSeconds = shownSeconds;
         lastShownCount = collectedCount;
-        string timer = $"{shownSeconds}s";
+        string timer = $"{shownSeconds}초";
         if (shownSeconds <= warningSeconds)
             timer = $"<color=#{ColorUtility.ToHtmlStringRGB(warningColor)}>{timer}</color>";
-        statusText.text = $"TIME TRIAL   {timer}     LIGHTS {collectedCount}/{coins.Count}";
+        statusText.text = $"도전 · {timer}   빛 {collectedCount}/{coins.Count}";
     }
 
     private void ShowResult(string message)

@@ -43,15 +43,15 @@ public class InteractionPromptUI : MonoBehaviour
         {
             if (carryController.IsHolding)
             {
-                message = "[ E ]  PUT DOWN"; // 상자를 들고 있을 때
+                message = "[E] 놓기"; // 상자를 들고 있을 때
             }
             else if (carryController.CanPickUpNearby)
             {
-                message = "[ E ]  PICK UP"; // 들 수 있는 상자가 가까울 때
+                message = "[E] 집기"; // 들 수 있는 상자가 가까울 때
             }
         }
 
-        promptText.text = message;
+        if (promptText.text != message) promptText.text = message;
         promptText.enabled = message.Length > 0; // 안내할 내용이 없으면 숨기기
     }
 }

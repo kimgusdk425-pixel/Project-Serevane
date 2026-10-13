@@ -1,5 +1,4 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -8,12 +7,10 @@ public class ExplorationSceneExit : MonoBehaviour
 {
     [SerializeField] private string nextScene = "MainGame_Chase";
     [SerializeField] private CanvasGroup fadeOverlay;
-    [SerializeField] private TMP_Text guidanceLabel;
     [SerializeField, Min(0f)] private float fadeSeconds = 0.4f;
     [SerializeField, Min(0)] private int minimumFragments; // 탐험 씬에서만 24개로 설정
     private bool loading;
     private PlayerMovement waitingPlayer;
-    private string previousGuidance;
 
     public int RequiredFragments => Mathf.Max(0, minimumFragments);
 
@@ -33,18 +30,16 @@ public class ExplorationSceneExit : MonoBehaviour
         if (!loading) ClearNotice();
     }
 
-    private void LateUpdate()
+    public string GetWaitingNotice(PlayerMovement player)
     {
-        if (waitingPlayer == null || loading || guidanceLabel == null) return;
-        PlayerCarryController carry = waitingPlayer.GetComponent<PlayerCarryController>();
-        if (carry != null && carry.IsHolding)
-            guidanceLabel.text = "PUT DOWN THE BOX TO CONTINUE   |   E";
-        else
-        {
-            PlayerJumpProgress progress = waitingPlayer.GetComponent<PlayerJumpProgress>();
-            int count = progress != null ? progress.CollectedFragments : 0;
-            guidanceLabel.text = $"EXIT LIGHTS {count}/{RequiredFragments}   |   RETURN TO THE RUINS FOR MORE LIGHTS";
-        }
+        if (waitingPlayer != player || waitingPlayer == null || loading) return null;
+        if (!GetComponent<BoxCollider>().bounds.Intersects(player.GetComponent<CharacterController>().bounds)) return null; // 위치 복귀로 Trigger 종료 알림이 누락돼도 안내 해제
+        PlayerCarryController carry = player.GetComponent<PlayerCarryController>();
+        if (carry != null && carry.IsHolding) return "상자를 내려놓고 이동하세요";
+        PlayerJumpProgress progress = player.GetComponent<PlayerJumpProgress>();
+        if (HasRequiredFragments(progress)) return null;
+        int count = progress != null ? progress.CollectedFragments : 0;
+        return $"빛이 더 필요해요 · {count}/{RequiredFragments}";
     }
 
     private void TryEnter(Collider other)
@@ -55,7 +50,6 @@ public class ExplorationSceneExit : MonoBehaviour
         PlayerCarryController carry = player.GetComponent<PlayerCarryController>();
         if ((carry != null && carry.IsHolding) || !HasRequiredFragments(player.GetComponent<PlayerJumpProgress>()))
         {
-            if (waitingPlayer == null && guidanceLabel != null) previousGuidance = guidanceLabel.text;
             waitingPlayer = player;
             return; // 필요한 성장량과 상자 소지 상태를 확인한 뒤 전환
         }
@@ -72,7 +66,6 @@ public class ExplorationSceneExit : MonoBehaviour
 
     private void ClearNotice()
     {
-        if (waitingPlayer != null && guidanceLabel != null) guidanceLabel.text = previousGuidance;
         waitingPlayer = null;
     }
 

@@ -7,10 +7,21 @@ public class ChallengeFragmentReward : MonoBehaviour
     [SerializeField] private GameObject rewardGroup; // 작은 빛 무리는 부모 오브젝트로 함께 공개
     private GameObject RewardObject => rewardGroup != null ? rewardGroup : (reward != null ? reward.gameObject : null);
     private bool revealed;
+    private JumpFragmentPickup[] pickups;
+    public Vector3 RewardPosition => RewardObject != null ? RewardObject.transform.position : transform.position;
+    public bool HasAvailableReward
+    {
+        get
+        {
+            if (!revealed || RewardObject == null || !RewardObject.activeInHierarchy || pickups == null) return false;
+            foreach (var pickup in pickups) if (pickup != null && !pickup.IsCollected) return true;
+            return false;
+        }
+    }
 
     private void Awake()
     {
-        if (RewardObject != null) RewardObject.SetActive(false); // 성공 전에는 획득 불가
+        if (RewardObject != null) { pickups = RewardObject.GetComponentsInChildren<JumpFragmentPickup>(true); RewardObject.SetActive(false); } // 성공 전에는 획득 불가
     }
 
     private void OnEnable()

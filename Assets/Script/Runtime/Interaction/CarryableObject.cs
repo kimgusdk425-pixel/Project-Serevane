@@ -3,6 +3,9 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class CarryableObject : MonoBehaviour
 {
+    public event System.Action PickedUp;
+    public event System.Action Dropped;
+
     public bool IsHeld { get; private set; } // 든 상태
 
     private Rigidbody rb; // 물리 담당
@@ -28,6 +31,7 @@ public class CarryableObject : MonoBehaviour
         }
         IsHeld = true; // 상태 전환
         rb.isKinematic = true; // 물리 끄기. 손을 따라다님
+        PickedUp?.Invoke();
     }
 
     public void Drop()
@@ -41,6 +45,7 @@ public class CarryableObject : MonoBehaviour
         {
             if (colliders[i] != null) colliders[i].enabled = colliderStates[i]; // 원래 상태만 복원
         }
+        Dropped?.Invoke();
     }
 
     public Vector3 GetPlacementHalfExtents()

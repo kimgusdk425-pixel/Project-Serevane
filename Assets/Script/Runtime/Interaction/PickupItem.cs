@@ -16,15 +16,18 @@ public class PickupItem : ItemInteractionTarget
             return string.Empty; // 이미 다른 아이템을 들고 있으면 대상 숨김
         }
 
-        return $"[ E ]  PICK UP {itemName}";
+        return itemType == ItemType.Key ? "[E] 열쇠 줍기" : $"[E] {itemName} 줍기";
     }
 
     public override ItemInteractionResult Interact(PlayerInventory inventory)
     {
-        if (inventory == null || !inventory.TryAddItem(itemType))
+        if (!isActiveAndEnabled || inventory == null || !inventory.TryAddItem(itemType))
         {
             return ItemInteractionResult.None;
         }
+
+        if (itemType == ItemType.Key && inventory.TryGetComponent<PlayerActionFeedback>(out var feedback))
+            feedback.PlayKeyPickup();
 
         // Destroy하지 않고 비활성화하면 씬을 다시 시작했을 때 다시 나타납니다.
         gameObject.SetActive(false);

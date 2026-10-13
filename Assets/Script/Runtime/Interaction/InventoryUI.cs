@@ -6,6 +6,7 @@ public class InventoryUI : MonoBehaviour
 {
     [SerializeField] private PlayerInventory inventory;
 
+    [SerializeField] private TMP_FontAsset hudFont;
     private GameObject itemPanel;
     private TMP_Text itemText;
 
@@ -50,8 +51,10 @@ public class InventoryUI : MonoBehaviour
         panelRect.anchoredPosition = new Vector2(-24f, 24f);
         panelRect.sizeDelta = new Vector2(190f, 54f);
 
+        itemPanel.layer = 5;
         Image background = itemPanel.GetComponent<Image>();
-        background.color = new Color(0f, 0f, 0f, 0.72f);
+        background.color = new Color(.14f, .11f, .075f, .88f);
+        background.raycastTarget = false;
 
         GameObject textObject = new GameObject(
             "ItemText",
@@ -65,11 +68,14 @@ public class InventoryUI : MonoBehaviour
         textRect.offsetMin = new Vector2(8f, 4f);
         textRect.offsetMax = new Vector2(-8f, -4f);
 
+        textObject.layer = 5;
         itemText = textObject.GetComponent<TextMeshProUGUI>();
+        if (hudFont != null) itemText.font = hudFont;
+        itemText.raycastTarget = false;
         itemText.alignment = TextAlignmentOptions.Center;
         itemText.fontSize = 20f;
-        itemText.color = Color.white;
-        itemText.text = "[ KEY ]";
+        itemText.color = new Color(1f, .88f, .65f);
+        itemText.text = "열쇠 보유";
 
         // 시작할 때는 아이템이 없으므로 패널을 숨깁니다.
         itemPanel.SetActive(false);
@@ -87,7 +93,7 @@ public class InventoryUI : MonoBehaviour
 
         if (currentItem == ItemType.Key)
         {
-            itemText.text = "[ KEY ]"; // 기본 TMP 폰트에서도 깨지지 않도록 영어만 표시
+            itemText.text = "열쇠 보유"; // 기본 TMP 폰트에서도 깨지지 않도록 영어만 표시
         }
     }
 }

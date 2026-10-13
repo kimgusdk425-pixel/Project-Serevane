@@ -31,12 +31,17 @@ public class PlayerMovement : MonoBehaviour
     private bool canUseGroundJump; // 한 번 떠오르면 착지 전까지 추가 점프 금지
     private readonly RaycastHit[] surfaceHits = new RaycastHit[32]; // 매 프레임 새 배열 생성 방지
 
+    public event System.Action Jumped;
+    public event System.Action Respawned;
+
+    public bool UsesSideScrollControls => useSideScrollControls;
     public float CurrentJumpHeight => jumpHeight + (jumpProgress != null ? jumpProgress.JumpBonus : 0f);
-    public bool IsControlEnabled => canControl && isActiveAndEnabled; // 다른 행동도 같은 조작 잠금을 확인
+    public bool IsControlEnabled => canControl && isActiveAndEnabled && !PauseMenuController.BlocksGameplayInput; // 다른 행동도 같은 조작 잠금을 확인
 
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
+        characterController.minMoveDistance = 0f; // 높은 프레임에서도 작은 이동과 바닥 접촉을 생략하지 않음
         groundedStepOffset = characterController.stepOffset;
         carryController = GetComponent<PlayerCarryController>();
         jumpProgress = GetComponent<PlayerJumpProgress>();
@@ -66,6 +71,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        if (PauseMenuController.BlocksGameplayInput) return;
         Vector2 input = canControl
             ? Vector2.ClampMagnitude(inputActions.Player.Move.ReadValue<Vector2>(), 1f)
             : Vector2.zero; // 종료 후에는 입력만 무시
@@ -127,6 +133,7 @@ public class PlayerMovement : MonoBehaviour
             now - lastJumpPressedTime > jumpBufferSeconds) return false;
         verticalVelocity = Mathf.Sqrt(CurrentJumpHeight * -2f * gravity);
         ClearJumpGrace(); // 입력 여유를 사용해도 공중 추가 점프는 금지
+        Jumped?.Invoke();
         return true;
     }
 
@@ -217,6 +224,7 @@ public class PlayerMovement : MonoBehaviour
         verticalVelocity = 0f; // 낙하 속도 초기화
         ClearJumpGrace(); // 재시작 전 점프 입력을 가져오지 않음
         characterController.enabled = true; // 충돌 복구
+        Respawned?.Invoke();
     }
 
     private Vector3 ToCameraSpace(Vector2 input)

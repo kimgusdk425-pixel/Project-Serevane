@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aaca80921ef97db4ba319153bb1ff8c0, type: 3}
+  m_Name: GameplayFeedback
+  m_EditorClassIdentifier: Assembly-CSharp::GameplayFeedbackSettings
+  keyPickup: {fileID: 8300000, guid: c589a48ce9b57d341a3915553793b001, type: 3}
+  plateActivate: {fileID: 8300000, guid: fb753828c4b5ef94b8801f3fee6c7863, type: 3}
+  trialStart: {fileID: 8300000, guid: 2ad5868d2f860cb45ab8b2c7d0da550b, type: 3}
+  trialSuccess: {fileID: 8300000, guid: 1862cfa7e43b7de449506467033224c6, type: 3}
+  trialFail: {fileID: 8300000, guid: d0aad65c5bfc95b4b99741df5b74010f, type: 3}
+  keyVolume: 0.22
+  plateVolume: 0.3
+  challengeVolume: 0.22
+  fragment: {fileID: 8300000, guid: bc6c455d37782864eb655593a94c633b, type: 3}
+  jump: {fileID: 8300000, guid: 21f07a52f03ca3b4480db1bcf44ee399, type: 3}
+  landing: {fileID: 8300000, guid: f6014178aaa886b4ea41246e16258b91, type: 3}
+  boxPickup: {fileID: 8300000, guid: e59f4674a021a9b448879d745d362b67, type: 3}
+  boxLanding: {fileID: 8300000, guid: 2acb00cd4d9e92b40a766ac8f5cc5ce1, type: 3}
+  door: {fileID: 8300000, guid: bbdac6a7366ca7842bd6ba935ea82a62, type: 3}
+  footstepA: {fileID: 8300000, guid: 1acd81d1d97f3b34b8af509b7be949f4, type: 3}
+  footstepB: {fileID: 8300000, guid: b6e6ef0df8e576340ba35426208cb665, type: 3}
+  boulderRoll: {fileID: 8300000, guid: 308d42492d174d24780f1258c627b565, type: 3}
+  boulderImpact: {fileID: 8300000, guid: 74f95be63a5f008479f38821537bbc9f, type: 3}
+  stoneFootstepA: {fileID: 8300000, guid: cb7b21cc6d6fb174c9464bbeab2b1343, type: 3}
+  stoneFootstepB: {fileID: 8300000, guid: 5ec257ac2bbcfe4459f675107b96b44b, type: 3}
+  woodFootstepA: {fileID: 8300000, guid: bc86753ed9a5511488a761860e67d67e, type: 3}
+  woodFootstepB: {fileID: 8300000, guid: 22a3cf5cd8d741841b30bd194b621824, type: 3}
+  stoneFootstepVolume: 0.14
+  woodFootstepVolume: 0.16
+  footstepVolume: 0.18
+  footstepContactPhase: 0
+  boulderRollVolume: 0.32
+  boulderImpactVolume: 0.55
+  fragmentVolume: 0.24
+  jumpVolume: 0.24
+  landingVolume: 0.35
+  boxVolume: 0.4
+  doorVolume: 0.4
+  fragmentSoundInterval: 0.09

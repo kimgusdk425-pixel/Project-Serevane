@@ -1,0 +1,9 @@
+Fantozzi sand footsteps (SandL2, SandR2)
+Author: Fantozzi. Sliced/distributed by qubodup.
+Source: https://opengameart.org/content/fantozzis-footsteps-grasssand-stone
+Original pack: https://www.freesound.org/people/Fantozzi/packs/10338/
+License: Creative Commons Zero (CC0 1.0 Universal)
+https://creativecommons.org/publicdomain/zero/1.0/
+Adaptation: converted to mono PCM WAV; leading quiet trimmed, low-pass filtering, peak attenuation and short fades.
+
+Stone footstep additions: Fantozzi-StoneL2.ogg and Fantozzi-StoneR2.ogg from the same CC0 pack, converted to mono WAV with low-pass filtering and fades.

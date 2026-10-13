@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class SlidingDoor : MonoBehaviour
 {
+    public event System.Action<bool> MovementStarted;
+
     [SerializeField] private float openHeight = 3f; // 열리는 높이
     [SerializeField] private float speed = 2f; // 이동 속도
 
@@ -15,12 +17,16 @@ public class SlidingDoor : MonoBehaviour
 
     public void Open()
     {
+        if (openAmount >= 1f) return;
         openAmount = 1f; // 목표: 열림
+        MovementStarted?.Invoke(true);
     }
 
     public void Close() // B용. A 래치에서는 미사용
     {
+        if (openAmount <= 0f) return;
         openAmount = 0f; // 목표: 닫힘
+        MovementStarted?.Invoke(false);
     }
 
     private void Update()

@@ -31,6 +31,7 @@ public class TofuMonster : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
+        controller.minMoveDistance = 0f; // 높은 프레임에서도 추격 이동과 바닥 접촉을 유지
         traversalRoute = GetComponent<MonsterTraversalRoute>();
         groundTraversal = GetComponent<MonsterGroundTraversal>();
         spawnPosition = transform.position;
@@ -60,6 +61,7 @@ public class TofuMonster : MonoBehaviour
 
     private void Update()
     {
+        if (PauseMenuController.IsPaused) return;
         if (player == null) // 대상 없으면 정지
         {
             return;

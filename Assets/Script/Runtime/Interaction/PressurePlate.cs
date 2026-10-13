@@ -2,9 +2,11 @@ using UnityEngine;
 
 public class PressurePlate : MonoBehaviour
 {
+    public event System.Action Activated;
     [SerializeField] private SlidingDoor door; // 열 문
     [SerializeField] private bool latch = true; // true=A 유지. false=B 무게
 
+    public bool IsActivated => opened;
     private bool opened; // 발동 기록
 
     private void OnValidate()
@@ -33,7 +35,9 @@ public class PressurePlate : MonoBehaviour
             return;
         }
 
+        bool newlyOpened = !opened;
         opened = true; // 발동 기록
+        if (newlyOpened) Activated?.Invoke(); // 반복 접촉이 아닌 최초 눌림에서만 알림
         if (door != null) // 미연결 방어
         {
             door.Open(); // 문 열기

@@ -2,11 +2,14 @@ using UnityEngine;
 
 public class LockedDoor : ItemInteractionTarget
 {
+    public event System.Action Opened;
+
     [SerializeField] private ItemType requiredItem = ItemType.Key; // 문을 여는 아이템
     [SerializeField] private float openHeight = 3f; // 위로 올라갈 높이
     [SerializeField] private float openSpeed = 2f; // 문 이동 속도
 
     private Vector3 closedPosition;
+    public bool IsOpen => isOpen;
     private bool isOpen;
 
     public override bool CanSelect(PlayerInventory inventory) => base.CanSelect(inventory) && !isOpen; // 열쇠 없는 잠긴 문은 안내 유지
@@ -25,10 +28,10 @@ public class LockedDoor : ItemInteractionTarget
 
         if (inventory != null && inventory.HasItem(requiredItem))
         {
-            return "[ E ]  OPEN DOOR";
+            return "[E] 문 열기";
         }
 
-        return "[ E ]  NEED KEY";
+        return "열쇠가 필요해요";
     }
 
     public override ItemInteractionResult Interact(PlayerInventory inventory)
@@ -46,6 +49,7 @@ public class LockedDoor : ItemInteractionTarget
         }
 
         isOpen = true; // 열림 상태로 바뀌는 순간에만 열쇠 소비
+        Opened?.Invoke();
         return ItemInteractionResult.DoorOpened;
     }
 

@@ -80,8 +80,8 @@ public class PlayerItemInteraction : MonoBehaviour
         if (carryIsNearest)
         {
             CurrentPrompt = carryController.IsHolding
-                ? "[ E ]  PUT DOWN"
-                : "[ E ]  PICK UP";
+                ? "[E] 놓기"
+                : "[E] 집기";
         }
         else
         {
