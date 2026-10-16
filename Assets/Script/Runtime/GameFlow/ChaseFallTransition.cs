@@ -37,12 +37,12 @@ public class ChaseFallTransition : MonoBehaviour
         while (elapsed < 5f)
         {
             elapsed += Time.deltaTime;
-            bool reachedLowerFloor = player.transform.position.y <= landingReturnPoint.position.y + 0.5f;
-            if (elapsed > 0.4f && body.isGrounded && reachedLowerFloor) break; // 위쪽 바닥 접촉을 착지로 오인하지 않음
+            bool reachedLowerFloor = body.bounds.min.y <= landingReturnPoint.position.y;
+            if (elapsed > 0.4f && body.isGrounded && reachedLowerFloor) break; // 발높이로 확인해 아래쪽 바위 착지도 인정
             yield return null;
         }
         player.SetRespawnPoint(landingReturnPoint.position, landingReturnPoint.rotation);
-        if (!body.isGrounded || player.transform.position.y > landingReturnPoint.position.y + 0.5f)
+        if (!body.isGrounded || body.bounds.min.y > landingReturnPoint.position.y)
             player.Respawn(); // 낙하가 막히거나 착지를 놓친 경우 안전한 도착점
         monster.RecordTraversalCheckpoint(); // 현재 위치는 유지하고 복귀 설정만 기억
         player.SetSideScrollControls(true); // 구간 중간에 앞 방향이 W로 바뀌지 않게 함
