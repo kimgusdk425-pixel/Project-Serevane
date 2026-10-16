@@ -17,8 +17,10 @@ MonoBehaviour:
   trialStart: {fileID: 8300000, guid: 2ad5868d2f860cb45ab8b2c7d0da550b, type: 3}
   trialSuccess: {fileID: 8300000, guid: 1862cfa7e43b7de449506467033224c6, type: 3}
   trialFail: {fileID: 8300000, guid: d0aad65c5bfc95b4b99741df5b74010f, type: 3}
-  keyVolume: 0.22
-  plateVolume: 0.3
+  keyDoorUnlock: {fileID: 8300000, guid: 15754cb2176867e469f3149a6a11be5f, type: 3}
+  rewardAppear: {fileID: 8300000, guid: 63a47d3efb7917a4ea3e7e2b75e16aad, type: 3}
+  keyVolume: 0.2
+  plateVolume: 0.24
   challengeVolume: 0.22
   fragment: {fileID: 8300000, guid: bc6c455d37782864eb655593a94c633b, type: 3}
   jump: {fileID: 8300000, guid: 21f07a52f03ca3b4480db1bcf44ee399, type: 3}
@@ -40,9 +42,9 @@ MonoBehaviour:
   footstepContactPhase: 0
   boulderRollVolume: 0.32
   boulderImpactVolume: 0.55
-  fragmentVolume: 0.24
+  fragmentVolume: 0.22
   jumpVolume: 0.24
   landingVolume: 0.35
-  boxVolume: 0.4
-  doorVolume: 0.4
+  boxVolume: 0.34
+  doorVolume: 0.3
   fragmentSoundInterval: 0.09

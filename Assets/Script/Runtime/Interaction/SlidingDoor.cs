@@ -32,6 +32,8 @@ public class SlidingDoor : MonoBehaviour
     private void Update()
     {
         Vector3 target = closedPos + Vector3.up * (openHeight * openAmount); // 목표 위치
-        transform.position = Vector3.MoveTowards(transform.position, target, speed * Time.deltaTime); // 등속 이동
+        Vector3 position = transform.position;
+        if (position.Equals(target)) return; // 도착한 문은 Transform을 다시 쓰지 않음
+        transform.position = Vector3.MoveTowards(position, target, speed * Time.deltaTime); // 등속 이동
     }
 }

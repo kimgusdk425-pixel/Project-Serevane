@@ -9,6 +9,7 @@ public class TimedCollectionChallenge : MonoBehaviour
     [SerializeField, Min(1f)] private float timeLimit = 20f; // 도전 제한 시간
     [SerializeField, Min(0.1f)] private float resultDisplaySeconds = 3f; // 결과 문구 표시 시간
     [SerializeField] private TMP_Text statusText; // 화면 위쪽 진행 안내
+    [SerializeField] private TMP_Text startLabel; // 시작 지점의 선택 도전 안내
 
     [SerializeField, Min(0f)] private float warningSeconds = 5f; // 마지막 몇 초부터 시간 색을 강조
     [SerializeField] private Color warningColor = new Color(1f, 0.35f, 0.22f);
@@ -63,11 +64,8 @@ public class TimedCollectionChallenge : MonoBehaviour
             return;
         }
 
-        // 시작 전에는 코인과 진행 안내를 감춰 발견 순서를 분명히 합니다.
-        foreach (TimedCollectionPickup coin in coins)
-        {
-            coin.gameObject.SetActive(false);
-        }
+        RefreshStartLabel();
+        HideCoins(); // 시작 아이템을 먹은 뒤에만 도전 코인을 표시
 
         statusText.gameObject.SetActive(false);
     }
@@ -109,10 +107,12 @@ public class TimedCollectionChallenge : MonoBehaviour
         collectedCount = 0;
         lastShownSeconds = -1;
         lastShownCount = -1;
+        RefreshStartLabel();
         starter.gameObject.SetActive(false);
 
         foreach (TimedCollectionPickup coin in coins)
         {
+            coin.SetPreview(false);
             coin.gameObject.SetActive(true);
         }
 
@@ -129,7 +129,7 @@ public class TimedCollectionChallenge : MonoBehaviour
             Fail(); // Update보다 접촉이 먼저 와도 만료 후 성공으로 바뀌지 않음
             return;
         }
-        if (coin == null || !coins.Contains(coin) || !coin.gameObject.activeSelf)
+        if (coin == null || coin.IsPreview || !coins.Contains(coin) || !coin.gameObject.activeSelf)
         {
             return; // 시작 전이거나 이미 먹은 코인은 세지 않음
         }
@@ -157,14 +157,27 @@ public class TimedCollectionChallenge : MonoBehaviour
         awaitingRetry = true;
         retryAvailableAt = Time.time + 0.5f; // 제자리에서 즉시 다시 시작되지 않도록 잠시 잠금
 
-        foreach (TimedCollectionPickup coin in coins)
-        {
-            coin.gameObject.SetActive(false);
-        }
+        HideCoins();
 
+        RefreshStartLabel();
         starter.gameObject.SetActive(true); // 다시 닿으면 재도전 가능
         Failed?.Invoke();
         ShowResult("시간 종료 · 다시 도전할 수 있어요"); // 나갔다 다시 닿아야 하는 규칙을 명시
+    }
+
+    private void HideCoins()
+    {
+        foreach (var coin in coins)
+        {
+            coin.SetPreview(true);
+            coin.gameObject.SetActive(false);
+        }
+    }
+
+    private void RefreshStartLabel()
+    {
+        if (startLabel == null) return;
+        startLabel.text = "시간제 도전 시작";
     }
 
     private void ShowProgress()

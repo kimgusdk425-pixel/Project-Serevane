@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -31,7 +32,15 @@ public class CameraFollow : MonoBehaviour
     private Vector3 finalViewStart;
     private float finalViewElapsed;
     private bool finalLandingView;
+    private Transform openingHead;
+    private Camera viewCamera;
+    private Vector3 openingLookPoint;
+    private float openingFieldOfView;
+    private Vector3 mapViewStartOffset;
+    private Quaternion mapViewStartRotation;
+    private float mapViewFieldOfView;
     private bool cursorOwned;
+    private bool cursorCapturePending;
     private CursorLockMode previousCursorLock;
     private bool previousCursorVisible;
     public bool IsChaseViewSettled => target != null && viewMode == ViewMode.ChaseSide &&
@@ -43,7 +52,9 @@ public class CameraFollow : MonoBehaviour
         ThreatReveal,
         ChaseSide,
         TraversalSide,
-        FinalFall
+        FinalFall,
+        OpeningLanding,
+        MapReveal
     }
 
     private void Awake()
@@ -53,7 +64,11 @@ public class CameraFollow : MonoBehaviour
         {
             target = p.transform;
             playerMovement = p;
+            Animator animator = p.GetComponentInChildren<Animator>();
+            if (animator != null && animator.isHuman)
+                openingHead = animator.GetBoneTransform(HumanBodyBones.Head);
         }
+        viewCamera = GetComponent<Camera>();
         ResetOrbitAngles();
     }
 
@@ -68,6 +83,8 @@ public class CameraFollow : MonoBehaviour
 
     private void OnDisable()
     {
+        CancelOpeningLandingView();
+        CancelMapRevealView();
         if (!cursorOwned) return;
         Cursor.lockState = previousCursorLock;
         Cursor.visible = previousCursorVisible;
@@ -76,13 +93,20 @@ public class CameraFollow : MonoBehaviour
 
     private void OnApplicationFocus(bool focused)
     {
-        if (!focused && cursorOwned) ReleaseCursorForUI();
+        if (!cursorOwned) return;
+        if (!focused) ReleaseCursorForUI();
+        else cursorCapturePending = true; // 연출 중 복귀했다면 조작이 풀린 뒤 재잠금
     }
 
     private void Update()
     {
         if (PauseMenuController.BlocksGameplayInput) return;
         if (!enableMouseOrbit || Mouse.current == null) return;
+        if (cursorCapturePending && playerMovement != null && playerMovement.IsControlEnabled)
+        {
+            CaptureCursor();
+            return; // 포커스 복귀 첫 프레임의 큰 이동량은 버림
+        }
         if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             ReleaseCursorForUI(); // Esc로 마우스를 Unity 창 밖으로 꺼낼 수 있음
@@ -110,6 +134,7 @@ public class CameraFollow : MonoBehaviour
 
     private void CaptureCursor()
     {
+        cursorCapturePending = false;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -117,6 +142,7 @@ public class CameraFollow : MonoBehaviour
     public void ReleaseCursorForUI()
     {
         if (!enableMouseOrbit) return;
+        cursorCapturePending = false;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -142,8 +168,8 @@ public class CameraFollow : MonoBehaviour
 
     private Vector3 ResolveCameraPosition(Vector3 desired)
     {
-        if (!enableMouseOrbit || viewMode != ViewMode.Follow) return desired; // 횡스크롤 구도는 기존 거리 유지
-        Vector3 origin = target.position + lookOffset;
+        if (!enableMouseOrbit || (viewMode != ViewMode.Follow && viewMode != ViewMode.OpeningLanding && viewMode != ViewMode.MapReveal)) return desired;
+        Vector3 origin = viewMode == ViewMode.OpeningLanding ? openingLookPoint : target.position + lookOffset;
         Vector3 direction = desired - origin;
         float distance = direction.magnitude;
         if (distance < 0.001f) return desired;
@@ -168,6 +194,8 @@ public class CameraFollow : MonoBehaviour
         {
             return;
         }
+
+        if (viewMode == ViewMode.OpeningLanding || viewMode == ViewMode.MapReveal) return; // 연출이 위치와 렌즈를 함께 제어
 
         Vector3 viewOffset = viewMode switch
         {
@@ -196,6 +224,102 @@ public class CameraFollow : MonoBehaviour
             float rotationT = 1f - Mathf.Exp(-rotationSmooth * Time.deltaTime);
             transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, rotationT);
         }
+    }
+
+    public IEnumerator PlayOpeningLandingView()
+    {
+        if (target == null || viewCamera == null) yield break;
+        ResetOrbitAngles();
+        openingFieldOfView = viewCamera.fieldOfView;
+        viewMode = ViewMode.OpeningLanding;
+        Vector3 startOffset = transform.position - target.position;
+        float startAngle = Mathf.Atan2(startOffset.x, startOffset.z) * Mathf.Rad2Deg;
+        float faceAngle = Mathf.Atan2(target.forward.x, target.forward.z) * Mathf.Rad2Deg - 18f;
+        Vector3 endOffset = GetFollowOffset(0f);
+        float endAngle = Mathf.Atan2(endOffset.x, endOffset.z) * Mathf.Rad2Deg;
+        float startDistance = new Vector2(startOffset.x, startOffset.z).magnitude;
+        float endDistance = new Vector2(endOffset.x, endOffset.z).magnitude;
+        float elapsed = 0f;
+        try
+        {
+            while (elapsed < 5f && target != null && viewMode == ViewMode.OpeningLanding)
+            {
+                if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame ||
+                    Keyboard.current.enterKey.wasPressedThisFrame)) break;
+                elapsed = Mathf.Min(5f, elapsed + Time.deltaTime);
+                float approach = Mathf.SmoothStep(0f, 1f, elapsed / 1.8f);
+                float departure = Mathf.SmoothStep(0f, 1f, (elapsed - 2.8f) / 2.2f);
+                Vector3 facePoint = openingHead != null ? openingHead.position + Vector3.up * 0.08f : target.position + lookOffset;
+                Vector3 closeOffset = facePoint - target.position + Vector3.up * 0.35f;
+                float angle = elapsed <= 2.8f ? Mathf.LerpAngle(startAngle, faceAngle, approach) :
+                    Mathf.LerpAngle(faceAngle, endAngle, departure);
+                float distance = elapsed <= 2.8f ? Mathf.Lerp(startDistance, 2.4f, approach) :
+                    Mathf.Lerp(2.4f, endDistance, departure);
+                float height = elapsed <= 2.8f ? Mathf.Lerp(startOffset.y, closeOffset.y, approach) :
+                    Mathf.Lerp(closeOffset.y, endOffset.y, departure);
+                openingLookPoint = Vector3.Lerp(Vector3.Lerp(target.position + lookOffset, facePoint, approach),
+                    target.position + lookOffset, departure);
+                Vector3 desired = target.position + Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance + Vector3.up * height;
+                transform.position = ResolveCameraPosition(desired);
+                Vector3 direction = openingLookPoint - transform.position;
+                if (direction.sqrMagnitude > 0.0001f) transform.rotation = Quaternion.LookRotation(direction);
+                viewCamera.fieldOfView = Mathf.Lerp(Mathf.Lerp(openingFieldOfView, 42f, approach), openingFieldOfView, departure);
+                yield return null;
+            }
+        }
+        finally
+        {
+            CancelOpeningLandingView();
+        }
+    }
+
+    public void CancelOpeningLandingView()
+    {
+        if (viewMode != ViewMode.OpeningLanding) return;
+        if (viewCamera != null) viewCamera.fieldOfView = openingFieldOfView;
+        SnapToTarget(); // 정상 종료·건너뛰기·중단 모두 기본 시점으로 복구
+    }
+
+    public IEnumerator PlayMapRevealView()
+    {
+        if (target == null || viewCamera == null || viewMode != ViewMode.Follow) yield break;
+        mapViewStartOffset = transform.position - target.position;
+        mapViewStartRotation = transform.rotation;
+        mapViewFieldOfView = viewCamera.fieldOfView;
+        viewMode = ViewMode.MapReveal;
+        float elapsed = 0f;
+        try
+        {
+            while (elapsed < 5f && target != null && viewMode == ViewMode.MapReveal)
+            {
+                if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame ||
+                    Keyboard.current.enterKey.wasPressedThisFrame)) break;
+                elapsed = Mathf.Min(5f, elapsed + Time.deltaTime);
+                float blend = elapsed <= 3.6f ? Mathf.SmoothStep(0f, 1f, elapsed / 1.4f) :
+                    1f - Mathf.SmoothStep(0f, 1f, (elapsed - 3.6f) / 1.4f);
+                Vector3 offset = Vector3.Lerp(mapViewStartOffset, new Vector3(0f, 2.6f, -7f), blend);
+                transform.position = ResolveCameraPosition(target.position + offset);
+                Vector3 direction = target.position + new Vector3(0f, 1f, 80f) - transform.position;
+                if (direction.sqrMagnitude > 0.0001f)
+                    transform.rotation = Quaternion.Slerp(mapViewStartRotation, Quaternion.LookRotation(direction), blend);
+                viewCamera.fieldOfView = Mathf.Lerp(mapViewFieldOfView, 64f, blend);
+                yield return null;
+            }
+        }
+        finally
+        {
+            CancelMapRevealView();
+        }
+    }
+
+    public void CancelMapRevealView()
+    {
+        if (viewMode != ViewMode.MapReveal) return;
+        viewMode = ViewMode.Follow;
+        if (viewCamera != null) viewCamera.fieldOfView = mapViewFieldOfView;
+        if (target == null) return;
+        transform.position = ResolveCameraPosition(target.position + mapViewStartOffset);
+        transform.rotation = mapViewStartRotation; // 연출 전 마우스 시점으로 복귀
     }
 
     public void ShowThreat(Transform newThreat)
@@ -267,7 +391,7 @@ public class CameraFollow : MonoBehaviour
     private Vector3 GetFinalFallOffset()
     {
         finalViewElapsed += Time.deltaTime;
-        Vector3 endingOffset = finalLandingView ? new Vector3(12f, 4f, 6f) : new Vector3(14f, 5f, 4f);
+        Vector3 endingOffset = finalLandingView ? new Vector3(8f, 3.5f, 6f) : new Vector3(14f, 5f, 4f);
         return Vector3.Lerp(finalViewStart, endingOffset, Mathf.SmoothStep(0f, 1f, finalViewElapsed / 1.6f));
     }
     public void SnapToTarget()
@@ -287,13 +411,17 @@ public class CameraFollow : MonoBehaviour
 
     private Vector3 GetLookPoint()
     {
+        if (viewMode == ViewMode.FinalFall && finalLandingView)
+            return target.position + lookOffset + Vector3.forward * 3f; // 왼쪽 캐릭터와 오른쪽 메뉴의 공간 확보
+
         if (viewMode == ViewMode.TraversalSide)
         {
-            Vector3 point = target.position + lookOffset + Vector3.forward * 2f; // 다음 발판 쪽 시야 확보
+            Vector3 point = target.position + lookOffset + Vector3.forward * 1.5f; // 다음 발판 쪽 시야 확보
             if (threat != null)
             {
                 Vector3 separation = threat.position - target.position;
-                point += Vector3.ClampMagnitude(separation, 10f) * 0.2f; // 추격자는 함께 보되 플레이어를 놓치지 않음
+                separation.y = 0f; // 바위 낙하 높이가 착지 시야를 위로 끌지 않음
+                point += Vector3.ClampMagnitude(separation, 20f) * .3f; // 뒤의 바위와 다음 발판 사이를 함께 담음
             }
             return point;
         }

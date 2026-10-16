@@ -18,16 +18,40 @@ public class FinalFallSequence : MonoBehaviour
     [SerializeField] private Light sceneSun;
     [SerializeField] private Light endingLight;
     [SerializeField] private GameObject[] endingHud;
-    [SerializeField, Min(0f)] private float landingPause = 1.2f;
+    [SerializeField, Min(0f)] private float landingPause = 3f;
+    [SerializeField, Min(0f)] private float musicFadeDuration = 1.5f;
     [SerializeField] private CanvasGroup endingText;
     [SerializeField, Min(0f)] private float departureSpeed = 3.6f;
     [SerializeField, Min(0.01f)] private float departureDuration = 2.2f;
+    [SerializeField] private PlayerMovement monitoredPlayer;
+    private BoxCollider finishTrigger;
     private bool finishing;
     public bool HasLanded { get; private set; }
 
+    private void Awake()
+    {
+        finishTrigger = GetComponent<BoxCollider>();
+    }
+
+    private void LateUpdate()
+    {
+        if (!useDeepLanding || finishing || monitoredPlayer == null || landingFloor == null ||
+            !monitoredPlayer.IsControlEnabled) return;
+        Vector3 position = monitoredPlayer.transform.position;
+        Bounds entrance = finishTrigger.bounds;
+        Bounds floor = landingFloor.bounds;
+        if (position.z >= entrance.min.z && position.z <= floor.max.z &&
+            position.x >= floor.min.x && position.x <= floor.max.x && position.y >= floor.min.y)
+            TryFinish(monitoredPlayer); // 높이 제한 없이 마지막 경계 통과도 감지
+    }
+
     private void OnTriggerEnter(Collider other)
     {
-        PlayerMovement player = other.GetComponentInParent<PlayerMovement>();
+        TryFinish(other.GetComponentInParent<PlayerMovement>());
+    }
+
+    private void TryFinish(PlayerMovement player)
+    {
         if (finishing || player == null || sceneFlow == null || fadeOverlay == null) return;
         if (useDeepLanding && (landingFloor == null || landingReturnPoint == null || cameraFollow == null))
         {
@@ -93,8 +117,8 @@ public class FinalFallSequence : MonoBehaviour
             elapsed += Time.deltaTime;
             float depth = Mathf.InverseLerp(startHeight, landingFloor.bounds.max.y, player.transform.position.y);
             float darkness = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.1f, 0.85f, depth));
-            if (sceneSun != null) sceneSun.intensity = Mathf.Lerp(sunStart, 0.09f, darkness);
-            RenderSettings.ambientLight = Color.Lerp(ambientStart, new Color(0.10f, 0.14f, 0.20f), darkness);
+            if (sceneSun != null) sceneSun.intensity = Mathf.Lerp(sunStart, 0.12f, darkness);
+            RenderSettings.ambientLight = Color.Lerp(ambientStart, new Color(0.14f, 0.18f, 0.24f), darkness);
             Bounds floor = landingFloor.bounds;
             bool overFloor = player.transform.position.x >= floor.min.x && player.transform.position.x <= floor.max.x &&
                 player.transform.position.z >= floor.min.z && player.transform.position.z <= floor.max.z;
@@ -139,10 +163,14 @@ public class FinalFallSequence : MonoBehaviour
                 yield break; // 실제 착지 없이 성공 문구를 표시하지 않음
             }
         }
-        if (sceneSun != null) sceneSun.intensity = 0.09f;
-        RenderSettings.ambientLight = new Color(0.10f, 0.14f, 0.20f);
+        if (sceneSun != null) sceneSun.intensity = 0.12f;
+        RenderSettings.ambientLight = new Color(0.14f, 0.18f, 0.24f);
         cameraFollow.BeginFinalLandingView();
-        yield return new WaitForSeconds(landingPause); // 착지 공간을 보여 준 뒤에만 종료 문구
+        float fadeDuration = Mathf.Min(landingPause, musicFadeDuration);
+        yield return new WaitForSecondsRealtime(Mathf.Max(0f, landingPause - fadeDuration));
+        BackgroundMusicPlayer music = FindFirstObjectByType<BackgroundMusicPlayer>();
+        if (music != null) yield return music.FadeOut(fadeDuration);
+        else yield return new WaitForSecondsRealtime(fadeDuration); // 음악이 없어도 같은 연출 길이 유지
         if (endingText != null) endingText.alpha = 0f;
         sceneFlow.CompleteDemo(player);
         if (endingText != null)

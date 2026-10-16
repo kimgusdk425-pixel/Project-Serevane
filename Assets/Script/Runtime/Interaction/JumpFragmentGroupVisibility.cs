@@ -5,7 +5,7 @@ public class JumpFragmentGroupVisibility : MonoBehaviour
 {
     [SerializeField] private PlayerJumpProgress progress;
     [SerializeField] private GameObject fragmentGroup; // 이 컴포넌트의 자식 그룹만 표시·숨김
-    [SerializeField] private ExplorationSceneExit exitRequirement; // 없으면 최대 강화 기준으로 숨김
+    [SerializeField] private ExplorationSceneExit exitRequirement; // 출구 보충 조각만 필요 수량에 맞춰 숨김
     private JumpFragmentPickup[] pickups;
 
     public int AvailableFragments
@@ -44,8 +44,7 @@ public class JumpFragmentGroupVisibility : MonoBehaviour
     private void Refresh()
     {
         if (progress == null || fragmentGroup == null || fragmentGroup == gameObject) return;
-        int target = exitRequirement != null ? exitRequirement.RequiredFragments : progress.MaxFragments;
-        bool visible = progress.CollectedFragments < target;
+        bool visible = exitRequirement == null || progress.CollectedFragments < exitRequirement.RequiredFragments;
         if (fragmentGroup.activeSelf != visible) fragmentGroup.SetActive(visible); // 먹은 자식은 다시 활성화하지 않음
     }
 }

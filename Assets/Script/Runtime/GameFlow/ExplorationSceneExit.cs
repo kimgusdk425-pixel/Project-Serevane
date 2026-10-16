@@ -11,6 +11,8 @@ public class ExplorationSceneExit : MonoBehaviour
     [SerializeField, Min(0)] private int minimumFragments; // 탐험 씬에서만 24개로 설정
     private bool loading;
     private PlayerMovement waitingPlayer;
+    private string waitingNotice;
+    private int noticeFragments, noticeRequiredFragments;
 
     public int RequiredFragments => Mathf.Max(0, minimumFragments);
 
@@ -39,7 +41,14 @@ public class ExplorationSceneExit : MonoBehaviour
         PlayerJumpProgress progress = player.GetComponent<PlayerJumpProgress>();
         if (HasRequiredFragments(progress)) return null;
         int count = progress != null ? progress.CollectedFragments : 0;
-        return $"빛이 더 필요해요 · {count}/{RequiredFragments}";
+        int required = RequiredFragments;
+        if (waitingNotice == null || noticeFragments != count || noticeRequiredFragments != required)
+        {
+            noticeFragments = count;
+            noticeRequiredFragments = required;
+            waitingNotice = $"빛이 더 필요해요 · {count}/{required}"; // 수량이 그대로면 기존 문구 재사용
+        }
+        return waitingNotice;
     }
 
     private void TryEnter(Collider other)

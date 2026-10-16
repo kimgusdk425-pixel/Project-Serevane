@@ -27,7 +27,7 @@ public class PickupItem : ItemInteractionTarget
         }
 
         if (itemType == ItemType.Key && inventory.TryGetComponent<PlayerActionFeedback>(out var feedback))
-            feedback.PlayKeyPickup();
+            feedback.PlayKeyPickup(transform.position);
 
         // Destroy하지 않고 비활성화하면 씬을 다시 시작했을 때 다시 나타납니다.
         gameObject.SetActive(false);

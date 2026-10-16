@@ -182,8 +182,7 @@ public class TofuMonster : MonoBehaviour
     public bool BeginTraversal()
     {
         if (traversalRoute == null) return false;
-        if (groundTraversal != null) groundTraversal.ResetMotion();
-        traversalRoute.BeginFromCurrentPosition();
+        traversalRoute.BeginFromCurrentPosition(); // 위쪽 바위 점프의 수직 속도는 입구까지 유지
         controller.enabled = true;
         enabled = true;
         return traversalRoute.IsFollowing;

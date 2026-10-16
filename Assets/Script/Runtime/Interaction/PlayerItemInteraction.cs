@@ -159,14 +159,10 @@ public class PlayerItemInteraction : MonoBehaviour
             ItemInteractionTarget target =
                 interactionHits[i].GetComponentInParent<ItemInteractionTarget>();
 
-            if (target == null || !target.CanSelect(inventory) ||
-                !InteractionReachability.CanReach(transform, target.transform, interactionHits[i]))
-            {
-                continue;
-            }
-
+            if (target == null || !target.CanSelect(inventory)) continue;
             float distance = (target.transform.position - transform.position).sqrMagnitude;
-            if (distance < bestDistance)
+            if (distance >= bestDistance) continue; // 더 가까워질 수 없는 후보는 벽 검사 생략
+            if (InteractionReachability.CanReach(transform, target.transform, interactionHits[i]))
             {
                 bestDistance = distance;
                 nearest = target;

@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -9,6 +10,7 @@ public class EndingMenuController : MonoBehaviour
 {
     [SerializeField] private UnityEngine.UI.Button replayButton, titleButton, quitButton;
     [SerializeField] private TMP_Text loadingText;
+    [SerializeField] private CanvasGroup menuContents;
     private CanvasGroup group;
     private bool isReady, isLoading;
 
@@ -17,6 +19,7 @@ public class EndingMenuController : MonoBehaviour
         group = GetComponent<CanvasGroup>();
         isReady = isLoading = false;
         group.interactable = group.blocksRaycasts = false;
+        if (menuContents != null) menuContents.alpha = 0f;
         replayButton.interactable = titleButton.interactable = quitButton.interactable = true;
         loadingText.gameObject.SetActive(false);
         Cursor.lockState = CursorLockMode.None;
@@ -25,18 +28,32 @@ public class EndingMenuController : MonoBehaviour
         replayButton.onClick.AddListener(Replay);
         titleButton.onClick.AddListener(ReturnToTitle);
         quitButton.onClick.AddListener(Quit);
+        StartCoroutine(RevealMenu());
     }
 
     private void OnDisable()
     {
+        StopAllCoroutines();
         replayButton.onClick.RemoveListener(Replay);
         titleButton.onClick.RemoveListener(ReturnToTitle);
         quitButton.onClick.RemoveListener(Quit);
     }
 
-    private void Update()
+    private IEnumerator RevealMenu()
     {
-        if (isReady || isLoading || group.alpha < .99f) return;
+        while (group.alpha < .99f) yield return null;
+        if (menuContents != null)
+        {
+            yield return new WaitForSecondsRealtime(.5f); // 완료 문구를 먼저 읽을 시간
+            float elapsed = 0f;
+            while (elapsed < .5f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                menuContents.alpha = Mathf.SmoothStep(0f, 1f, elapsed / .5f);
+                yield return null;
+            }
+            menuContents.alpha = 1f;
+        }
         isReady = true;
         group.interactable = group.blocksRaycasts = true;
         if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(replayButton.gameObject);

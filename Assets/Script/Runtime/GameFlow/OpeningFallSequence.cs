@@ -6,10 +6,14 @@ public class OpeningFallSequence : MonoBehaviour
 {
     [SerializeField] private PlayerMovement player;
     [SerializeField] private Transform landingCheckpoint;
+    private CameraFollow cameraFollow;
+    private bool presenting;
 
     private IEnumerator Start()
     {
         if (player == null || landingCheckpoint == null) yield break;
+        cameraFollow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+        presenting = true;
         player.SetRespawnPoint(landingCheckpoint.position, landingCheckpoint.rotation);
         player.SetControlEnabled(false); // 시작 낙하 중에는 중력만 적용
         CharacterController body = player.GetComponent<CharacterController>();
@@ -40,6 +44,15 @@ public class OpeningFallSequence : MonoBehaviour
             }
         }
         yield return new WaitForSeconds(0.25f);
+        if (cameraFollow != null) yield return cameraFollow.PlayOpeningLandingView();
+        presenting = false;
         player.SetControlEnabled(true); // 착지 뒤 이동 시작
+    }
+    private void OnDisable()
+    {
+        if (!presenting) return;
+        if (cameraFollow != null) cameraFollow.CancelOpeningLandingView();
+        if (player != null) player.SetControlEnabled(true); // 연출 중단으로 조작 잠금이 남지 않음
+        presenting = false;
     }
 }

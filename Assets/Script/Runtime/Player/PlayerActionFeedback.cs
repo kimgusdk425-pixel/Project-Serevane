@@ -13,12 +13,15 @@ public class PlayerActionFeedback : MonoBehaviour
     private int lastFootstep = int.MinValue;
     private static readonly int Walking = Animator.StringToHash("Base Layer.Walk");
     private PlayerMovement movement;
+    private PlayerJumpProgress jumpProgress;
+    private bool milestonePending;
     private CharacterController body;
     private float airborneSeconds, fallSpeed, suppressLandingUntil, nextFragmentSound, nextFootstepTime;
 
     private void Awake()
     {
         movement = GetComponent<PlayerMovement>();
+        jumpProgress = GetComponent<PlayerJumpProgress>();
         body = GetComponent<CharacterController>();
         characterAnimator = GetComponentInChildren<Animator>();
         if (settings == null || collectionAudio == null || movementAudio == null || collectionSparkles == null)
@@ -28,6 +31,7 @@ public class PlayerActionFeedback : MonoBehaviour
     private void OnEnable()
     {
         movement.Jumped += OnJumped;
+        if (jumpProgress != null) jumpProgress.FragmentCollected += OnFragmentCollected;
         movement.Respawned += ResetMotion;
         ResetMotion();
     }
@@ -35,6 +39,7 @@ public class PlayerActionFeedback : MonoBehaviour
     private void OnDisable()
     {
         movement.Jumped -= OnJumped;
+        if (jumpProgress != null) jumpProgress.FragmentCollected -= OnFragmentCollected;
         movement.Respawned -= ResetMotion;
         ResetMotion();
     }
@@ -42,19 +47,41 @@ public class PlayerActionFeedback : MonoBehaviour
     public void PlayFragment(Vector3 position)
     {
         if (!isActiveAndEnabled || settings == null) return;
-        if (collectionSparkles != null)
-            collectionSparkles.Emit(new ParticleSystem.EmitParams { position = position + Vector3.up * 0.35f, applyShapeToPosition = true }, 12); // 조각 오브젝트가 사라져도 플레이어 쪽 입자는 유지
+        bool milestone = milestonePending;
+        milestonePending = false;
+        EmitCollection(position, milestone ? 20 : 9);
+        if (milestone && settings.rewardAppear != null && collectionAudio != null)
+        {
+            nextFragmentSound = Time.time + Mathf.Max(.18f, settings.fragmentSoundInterval);
+            collectionAudio.Stop();
+            collectionAudio.PlayOneShot(settings.rewardAppear, settings.challengeVolume); // 한 묶음의 성장 순간에 기존 보상음 하나만 강조
+            return;
+        }
         if (Time.time < nextFragmentSound) return;
         nextFragmentSound = Time.time + settings.fragmentSoundInterval;
         if (collectionAudio != null && settings.fragment != null)
             collectionAudio.PlayOneShot(settings.fragment, settings.fragmentVolume);
     }
 
-    public void PlayKeyPickup()
+    private void OnFragmentCollected()
     {
-        if (!isActiveAndEnabled || settings == null || collectionAudio == null || settings.keyPickup == null) return;
+        int count = jumpProgress.CollectedFragments;
+        milestonePending = count % 4 == 0;
+    }
+
+    public void PlayKeyPickup(Vector3 position)
+    {
+        if (!isActiveAndEnabled || settings == null) return;
+        EmitCollection(position, 10);
+        if (collectionAudio == null || settings.keyPickup == null) return;
         collectionAudio.Stop();
-        collectionAudio.PlayOneShot(settings.keyPickup, settings.keyVolume); // 비활성화되는 열쇠 대신 플레이어에서 한 번 재생
+        collectionAudio.PlayOneShot(settings.keyPickup, settings.keyVolume); // 열쇠가 사라져도 플레이어의 소리와 입자는 유지
+    }
+
+    private void EmitCollection(Vector3 position, int count)
+    {
+        if (collectionSparkles != null)
+            collectionSparkles.Emit(new ParticleSystem.EmitParams { position = position + Vector3.up * .2f, applyShapeToPosition = true }, count);
     }
 
     private void OnJumped()
@@ -164,6 +191,7 @@ public class PlayerActionFeedback : MonoBehaviour
     private void ResetMotion()
     {
         previousPosition = transform.position;
+        milestonePending = false;
         StopFootsteps();
         airborneSeconds = fallSpeed = 0f;
         nextFootstepTime = 0f;

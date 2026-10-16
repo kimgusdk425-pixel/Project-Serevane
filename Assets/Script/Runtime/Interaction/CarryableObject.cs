@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -9,22 +10,22 @@ public class CarryableObject : MonoBehaviour
     public bool IsHeld { get; private set; } // 든 상태
 
     private Rigidbody rb; // 물리 담당
-    private Collider[] colliders; // 충돌 담당들
-    private bool[] colliderStates; // 집기 직전 켜짐 여부
+    private readonly List<Collider> colliders = new List<Collider>(); // 집을 때 목록을 다시 채워 재사용
+    private bool[] colliderStates = System.Array.Empty<bool>(); // 집기 직전 켜짐 여부
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true; // 발판용. 넘어짐 방지
-        colliders = GetComponentsInChildren<Collider>(true);
+        GetComponentsInChildren(true, colliders);
     }
 
     public void PickUp()
     {
         if (IsHeld) return; // 중복 호출로 꺼진 상태를 원래 상태로 덮어쓰지 않음
-        colliders = GetComponentsInChildren<Collider>(true);
-        colliderStates = new bool[colliders.Length];
-        for (int i = 0; i < colliders.Length; i++)
+        GetComponentsInChildren(true, colliders); // 실행 중 추가된 자식 충돌체도 포함
+        if (colliderStates.Length < colliders.Count) colliderStates = new bool[colliders.Count];
+        for (int i = 0; i < colliders.Count; i++)
         {
             colliderStates[i] = colliders[i].enabled; // 원래 꺼진 예비 충돌체도 구분
             colliders[i].enabled = false;
@@ -41,7 +42,7 @@ public class CarryableObject : MonoBehaviour
         rb.isKinematic = false; // 물리 켜기. 떨어지고 밟힘
         rb.constraints |= RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionZ; // 앞뒤·좌우로 밀리지 않고 아래로만 떨어짐
         rb.linearVelocity = Vector3.zero; // 들고 이동하던 속도가 남지 않도록
-        for (int i = 0; i < colliders.Length; i++)
+        for (int i = 0; i < colliders.Count; i++)
         {
             if (colliders[i] != null) colliders[i].enabled = colliderStates[i]; // 원래 상태만 복원
         }

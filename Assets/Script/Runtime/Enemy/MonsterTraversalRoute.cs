@@ -16,6 +16,7 @@ public class MonsterTraversalRoute : MonoBehaviour
     [SerializeField] private Transform lowerRetryPoint;
     [SerializeField] private int lowerRetryStep = 1;
     private CharacterController body;
+    private MonsterGroundTraversal groundTraversal;
     private float verticalSpeed;
     private float originalStepOffset;
     private Vector3 jumpVelocity;
@@ -40,6 +41,7 @@ public class MonsterTraversalRoute : MonoBehaviour
     private void Awake()
     {
         body = GetComponent<CharacterController>();
+        groundTraversal = GetComponent<MonsterGroundTraversal>();
         originalStepOffset = body.stepOffset;
     }
 
@@ -122,7 +124,12 @@ public class MonsterTraversalRoute : MonoBehaviour
         if (jumping) airborneSeconds += deltaTime;
         verticalSpeed += gravity * deltaTime;
         body.stepOffset = grounded && !jumping ? originalStepOffset : 0f;
-        body.Move((velocity + Vector3.up * verticalSpeed) * deltaTime); // 충돌체를 유지한 이동과 중력
+        if (nextStep == 0 && groundTraversal != null && groundTraversal.isActiveAndEnabled)
+        {
+            groundTraversal.Tick(velocity, deltaTime); // 낙하 입구에 도착할 때까지 위쪽 바위 넘기 유지
+            verticalSpeed = body.velocity.y; // 경로 이동으로 넘길 때 낙하 속도도 이어받음
+        }
+        else body.Move((velocity + Vector3.up * verticalSpeed) * deltaTime);
         State = jumping ? TraversalState.Jumping
             : body.isGrounded ? TraversalState.Running : TraversalState.Falling;
         Vector3 remaining = target - transform.position;
@@ -130,6 +137,7 @@ public class MonsterTraversalRoute : MonoBehaviour
         if (remaining.sqrMagnitude <= arrivalDistance * arrivalDistance &&
             (nextStep == 0 || (body.isGrounded && !jumping)))
         {
+            if (nextStep == 0 && groundTraversal != null) groundTraversal.ResetMotion();
             nextStep++;
             launchedJump = false;
         }
@@ -197,15 +205,15 @@ public class MonsterTraversalRoute : MonoBehaviour
         if (targetCharacter == null || !targetCharacter.enabled || !targetCharacter.isGrounded) return false;
         if (platforms != null && platforms.Length > 0 && FindPlatform(targetCharacter) == platforms.Length - 1)
             return false; // 최종 발판에 도달한 플레이어는 거리 보정 제외
-        lead = GetPathProgress(target.position) - GetPathProgress(transform.position);
+        lead = GetPathLead(target.position, transform.position);
         return true;
     }
 
-    private float GetPathProgress(Vector3 position)
+    private float GetPathLead(Vector3 targetPosition, Vector3 monsterPosition)
     {
         float accumulated = 0f;
-        float bestProgress = 0f;
-        float bestDistance = float.PositiveInfinity;
+        float targetProgress = 0f, monsterProgress = 0f;
+        float targetDistance = float.PositiveInfinity, monsterDistance = float.PositiveInfinity;
         for (int i = 1; i < waypoints.Length; i++)
         {
             if (waypoints[i - 1] == null || waypoints[i] == null) continue;
@@ -213,16 +221,24 @@ public class MonsterTraversalRoute : MonoBehaviour
             Vector3 segment = waypoints[i].position - start;
             float length = segment.magnitude;
             if (length <= 0.001f) continue;
-            float ratio = Mathf.Clamp01(Vector3.Dot(position - start, segment) / segment.sqrMagnitude);
-            float distance = (position - (start + segment * ratio)).sqrMagnitude;
-            if (distance < bestDistance)
+            float squaredLength = segment.sqrMagnitude;
+            float targetRatio = Mathf.Clamp01(Vector3.Dot(targetPosition - start, segment) / squaredLength);
+            float monsterRatio = Mathf.Clamp01(Vector3.Dot(monsterPosition - start, segment) / squaredLength);
+            float targetGap = (targetPosition - (start + segment * targetRatio)).sqrMagnitude;
+            float monsterGap = (monsterPosition - (start + segment * monsterRatio)).sqrMagnitude;
+            if (targetGap < targetDistance)
             {
-                bestDistance = distance;
-                bestProgress = accumulated + length * ratio; // 직선거리가 아닌 실제 경로의 진행 거리
+                targetDistance = targetGap;
+                targetProgress = accumulated + length * targetRatio;
             }
-            accumulated += length;
+            if (monsterGap < monsterDistance)
+            {
+                monsterDistance = monsterGap;
+                monsterProgress = accumulated + length * monsterRatio;
+            }
+            accumulated += length; // 두 대상이 같은 경로 지점·길이 계산을 공유
         }
-        return bestProgress;
+        return targetProgress - monsterProgress;
     }
 
     private int FindPlatform(CharacterController character)

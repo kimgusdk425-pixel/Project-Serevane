@@ -1,0 +1,9 @@
+Source: Swishes Sound Pack
+Author: artisticdude
+Page: https://opengameart.org/content/swishes-sound-pack
+Download: https://opengameart.org/sites/default/files/swishes.zip
+License shown on source page: CC0
+License link: https://creativecommons.org/publicdomain/zero/1.0/
+Original recording method: swinging a clothes hanger and wooden sticks, as described by the author.
+Used: swishes/swish-3.wav and swishes/swish-7.wav.
+Edits: mono conversion, slower playback, broad EQ, short fades and level matching. No oscillator or impact layer added.

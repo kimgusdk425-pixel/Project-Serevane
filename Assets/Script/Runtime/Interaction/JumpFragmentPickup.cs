@@ -14,6 +14,7 @@ public class JumpFragmentPickup : MonoBehaviour
     private Vector3 homePosition;
     private float phase;
     private float nextSearch;
+    public event System.Action Collected;
     public bool IsCollected => collected;
     private bool collected; // 같은 접촉에서 중복 획득 방지
 
@@ -77,9 +78,10 @@ public class JumpFragmentPickup : MonoBehaviour
     {
         if (collected || !CanCollect(progress)) return; // 접촉과 자석 도착이 같은 조건을 사용
         collected = true; // 자석 도착과 접촉이 겹쳐도 한 번만 획득
-        progress.TryCollectFragment(); // 최대 강화 이후에도 빛은 흡수하지만 수치는 늘지 않음
+        progress.TryCollectFragment(); // 수집할 때마다 강화 수치를 증가
         if (progress.TryGetComponent<PlayerActionFeedback>(out var feedback)) feedback.PlayFragment(transform.position);
-        gameObject.SetActive(false); // 최대 강화에서도 흡수한 빛은 숨기기
+        Collected?.Invoke(); // 실제 획득을 장식에도 알림: 성장/보상 판정은 그대로
+        gameObject.SetActive(false); // 흡수한 빛은 숨기기
     }
 
     private bool CanCollect(PlayerJumpProgress progress)

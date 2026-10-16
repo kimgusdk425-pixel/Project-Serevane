@@ -4,6 +4,7 @@ using UnityEngine;
 public class GameplayFeedbackSettings : ScriptableObject
 {
     public AudioClip keyPickup, plateActivate, trialStart, trialSuccess, trialFail;
+    public AudioClip keyDoorUnlock, rewardAppear;
     [Range(0f, 1f)] public float keyVolume = 0.22f;
     [Range(0f, 1f)] public float plateVolume = 0.3f;
     [Range(0f, 1f)] public float challengeVolume = 0.22f;

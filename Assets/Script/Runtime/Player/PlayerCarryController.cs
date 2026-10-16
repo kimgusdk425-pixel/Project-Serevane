@@ -199,14 +199,10 @@ public class PlayerCarryController : MonoBehaviour
         {
             Collider h = pickupHits[i];
             CarryableObject c = h.GetComponentInParent<CarryableObject>(); // 운반 가능?
-            if (c == null || !c.isActiveAndEnabled || c.IsHeld ||
-                !InteractionReachability.CanReach(transform, c.transform, h)) // 벽 너머 상자도 후보에서 제외
-            {
-                continue;
-            }
-
-            float d = Vector3.Distance(transform.position, c.transform.position); // 거리 비교
-            if (d < best)
+            if (c == null || !c.isActiveAndEnabled || c.IsHeld) continue;
+            float d = (transform.position - c.transform.position).sqrMagnitude;
+            if (d >= best) continue; // 순위 비교에는 제곱 거리만 사용
+            if (InteractionReachability.CanReach(transform, c.transform, h)) // 더 가까운 상자만 벽 검사
             {
                 best = d;
                 nearest = c;

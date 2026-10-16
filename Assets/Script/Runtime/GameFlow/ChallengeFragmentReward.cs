@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class ChallengeFragmentReward : MonoBehaviour
 {
+    public event System.Action Revealed;
     [SerializeField] private TimedCollectionChallenge challenge;
     [SerializeField] private JumpFragmentPickup reward;
     [SerializeField] private GameObject rewardGroup; // 작은 빛 무리는 부모 오브젝트로 함께 공개
@@ -39,5 +40,6 @@ public class ChallengeFragmentReward : MonoBehaviour
         if (revealed || RewardObject == null) return;
         revealed = true;
         RewardObject.SetActive(true); // 자동 강화가 아니라 직접 닿아야 획득
+        Revealed?.Invoke(); // 실제 보상이 나타난 뒤 한 번만 알림
     }
 }

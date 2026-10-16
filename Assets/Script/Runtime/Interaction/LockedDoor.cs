@@ -56,8 +56,10 @@ public class LockedDoor : ItemInteractionTarget
     private void Update()
     {
         Vector3 target = closedPosition + Vector3.up * (isOpen ? openHeight : 0f);
+        Vector3 position = transform.position;
+        if (position.Equals(target)) return; // 닫힌 상태와 열린 뒤의 불필요한 위치 갱신 방지
         transform.position = Vector3.MoveTowards(
-            transform.position,
+            position,
             target,
             openSpeed * Time.deltaTime);
     }
